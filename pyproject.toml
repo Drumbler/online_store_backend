@@ -160,7 +160,7 @@ readme = "README.md"
 
 license = { text = "MIT" }
 authors = [
-  { name = "Drumbler", email = "support@localhost" },
+  { name = "Drumbler", email = "andy132012@gmail.com" },
 ]
 requires-python = "==3.13.*"
 dependencies = [

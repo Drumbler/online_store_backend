@@ -18,6 +18,7 @@ def main():
             "forget to activate a virtual environment?",
         ) from exc
 
+
     # This allows easy placement of apps within the interior
     # online_store_backend directory.
     current_path = Path(__file__).parent.resolve()
