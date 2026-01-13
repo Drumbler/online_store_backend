@@ -88,6 +88,7 @@ LOCAL_APPS = [
     "online_store_backend.users",
     "online_store_backend.cart",
     "online_store_backend.orders",
+    "online_store_backend.products",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
