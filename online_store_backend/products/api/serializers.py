@@ -2,15 +2,17 @@ from rest_framework import serializers
 
 
 class ProductCategorySerializer(serializers.Serializer):
-    id = serializers.CharField()
-    title = serializers.CharField()
+    id = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
 
 
 class ProductSerializer(serializers.Serializer):
     id = serializers.CharField()
+    slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     title = serializers.CharField()
-    description = serializers.CharField(allow_blank=True)
-    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    description = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    price = serializers.CharField()
     currency = serializers.CharField()
-    image_url = serializers.URLField(allow_null=True)
-    category = ProductCategorySerializer(allow_null=True)
+    image_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    category = ProductCategorySerializer(allow_null=True, required=False)

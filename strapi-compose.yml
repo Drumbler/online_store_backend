@@ -1,0 +1,42 @@
+services:
+  strapi-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: strapi
+      POSTGRES_USER: strapi
+      POSTGRES_PASSWORD: strapi
+    volumes:
+      - strapi_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  strapi:
+    build:
+      context: ./strapi/cms
+    depends_on:
+      - strapi-db
+    environment:
+      HOST: 0.0.0.0
+      PORT: 1337
+
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: strapi-db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: strapi
+      DATABASE_USERNAME: strapi
+      DATABASE_PASSWORD: strapi
+
+      # dev секреты (ок для локалки)
+      APP_KEYS: "a,b,c,d"
+      API_TOKEN_SALT: "token_salt"
+      ADMIN_JWT_SECRET: "admin_jwt_secret"
+      JWT_SECRET: "jwt_secret"
+      NODE_ENV: development
+    volumes:
+      - ./strapi/cms:/app
+      - /app/node_modules
+    ports:
+      - "1337:1337"
+
+volumes:
+  strapi_db_data:
