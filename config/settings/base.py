@@ -315,6 +315,8 @@ SPECTACULAR_SETTINGS = {
 # ------------------------------------------------------------------------------
 STRAPI_BASE_URL = env(
     "STRAPI_BASE_URL",
-    default="http://host.docker.internal:1337",
+    default="http://strapi:1337",
 )
-STRAPI_TIMEOUT_SECONDS = env.int("STRAPI_TIMEOUT_SECONDS", default=3)
+STRAPI_TIMEOUT_SECONDS = env.int("STRAPI_TIMEOUT_SECONDS", default=5)
+STRAPI_READ_API_TOKEN = env("STRAPI_READ_API_TOKEN")
+STRAPI_ADMIN_API_TOKEN = env("STRAPI_ADMIN_API_TOKEN")

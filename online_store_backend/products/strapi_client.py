@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 class StrapiUnavailableError(Exception):
-    pass
+    def __init__(self, message="Strapi unavailable"):
+        super().__init__(message)
 
 
 class StrapiNotFoundError(Exception):
@@ -118,11 +119,71 @@ def _normalize_product(item):
     }
 
 
-def _strapi_get(path, params=None):
+def _normalize_category_admin(item):
+    attrs = _extract_attributes(item)
+    document_id = attrs.get("documentId")
+    if not document_id and isinstance(item, dict):
+        document_id = item.get("documentId")
+    if not document_id:
+        logger.error("Category missing documentId: %r", item)
+        return None
+    return {
+        "id": str(document_id),
+        "slug": attrs.get("slug"),
+        "title": attrs.get("title"),
+    }
+
+
+def _normalize_product_admin(item):
+    attrs = _extract_attributes(item)
+    document_id = attrs.get("documentId")
+    if not document_id and isinstance(item, dict):
+        document_id = item.get("documentId")
+    if not document_id:
+        logger.error("Product missing documentId: %r", item)
+        return None
+    return {
+        "id": str(document_id),
+        "slug": attrs.get("slug"),
+        "title": attrs.get("title"),
+        "description": attrs.get("description"),
+        "price": _format_price(attrs.get("price")),
+        "currency": attrs.get("currency") or "RUB",
+        "category": _normalize_category(attrs.get("category")),
+    }
+
+
+def _get_read_token():
+    token = settings.STRAPI_READ_API_TOKEN
+    if not token:
+        logger.error("STRAPI_READ_API_TOKEN is not configured.")
+        raise StrapiUnavailableError("STRAPI_READ_API_TOKEN is not configured.")
+    return token
+
+
+def _get_admin_token():
+    token = settings.STRAPI_ADMIN_API_TOKEN
+    if not token:
+        logger.error("STRAPI_ADMIN_API_TOKEN is not configured.")
+        raise StrapiUnavailableError("STRAPI_ADMIN_API_TOKEN is not configured.")
+    return token
+
+
+def _strapi_request(method, path, *, params=None, json=None, token=None):
     base_url = settings.STRAPI_BASE_URL.rstrip("/")
     url = f"{base_url}{path}"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
-        response = requests.get(url, params=params, timeout=settings.STRAPI_TIMEOUT_SECONDS)
+        response = requests.request(
+            method,
+            url,
+            params=params,
+            json=json,
+            headers=headers,
+            timeout=settings.STRAPI_TIMEOUT_SECONDS,
+        )
     except requests.RequestException as exc:
         logger.exception("Strapi request failed: %s", exc)
         raise StrapiUnavailableError from exc
@@ -131,11 +192,25 @@ def _strapi_get(path, params=None):
     if response.status_code >= 400:
         logger.error("Strapi returned %s: %s", response.status_code, response.text)
         raise StrapiRequestError(response.status_code, response.text)
+    if not response.content:
+        return None
     try:
         return response.json()
     except ValueError as exc:
         logger.exception("Invalid JSON from Strapi: %s", exc)
         raise StrapiUnavailableError from exc
+
+
+def _strapi_get(path, params=None):
+    return _strapi_request("GET", path, params=params)
+
+
+def _strapi_get_public(path, params=None):
+    return _strapi_request("GET", path, params=params, token=_get_read_token())
+
+
+def _strapi_get_admin(path, params=None):
+    return _strapi_request("GET", path, params=params, token=_get_admin_token())
 
 
 def list_products(*, page: int, page_size: int):
@@ -146,15 +221,20 @@ def list_products(*, page: int, page_size: int):
         "populate[image]": "true",
     }
     try:
-        payload = _strapi_get("/api/products", params=params)
+        payload = _strapi_get_public("/api/products", params=params)
     except StrapiRequestError as exc:
-        if exc.status_code == 400:
-            logger.warning("Strapi rejected image populate, retrying without image.")
+        if exc.status_code in {400, 500}:
+            logger.warning("Strapi rejected product list populate, retrying without image.")
             params.pop("populate[image]", None)
             try:
-                payload = _strapi_get("/api/products", params=params)
+                payload = _strapi_get_public("/api/products", params=params)
             except StrapiRequestError as retry_exc:
-                raise StrapiUnavailableError from retry_exc
+                logger.warning("Strapi rejected product list populate, retrying without populate.")
+                params.pop("populate", None)
+                try:
+                    payload = _strapi_get_public("/api/products", params=params)
+                except StrapiRequestError as final_exc:
+                    raise StrapiUnavailableError from final_exc
         else:
             raise StrapiUnavailableError from exc
     items = payload.get("data", []) if isinstance(payload, dict) else []
@@ -183,15 +263,20 @@ def get_product(document_id: str):
         "populate[image]": "true",
     }
     try:
-        payload = _strapi_get(f"/api/products/{document_id}", params=params)
+        payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
     except StrapiRequestError as exc:
-        if exc.status_code == 400:
-            logger.warning("Strapi rejected image populate, retrying without image.")
+        if exc.status_code in {400, 500}:
+            logger.warning("Strapi rejected product populate, retrying without image.")
             params.pop("populate[image]", None)
             try:
-                payload = _strapi_get(f"/api/products/{document_id}", params=params)
+                payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
             except StrapiRequestError as retry_exc:
-                raise StrapiUnavailableError from retry_exc
+                logger.warning("Strapi rejected product populate, retrying without populate.")
+                params.pop("populate", None)
+                try:
+                    payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
+                except StrapiRequestError as final_exc:
+                    raise StrapiUnavailableError from final_exc
         else:
             raise StrapiUnavailableError from exc
     item = payload.get("data") if isinstance(payload, dict) else payload
@@ -201,3 +286,277 @@ def get_product(document_id: str):
     if not normalized:
         raise StrapiUnavailableError
     return normalized
+
+
+def list_categories(*, page: int, page_size: int):
+    params = {
+        "pagination[page]": page,
+        "pagination[pageSize]": page_size,
+    }
+    try:
+        payload = _strapi_get_public("/api/categories", params=params)
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+    results = []
+    for item in items:
+        normalized = _normalize_category_admin(item)
+        if normalized:
+            results.append(normalized)
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total": len(results),
+    }
+    meta = payload.get("meta", {}) if isinstance(payload, dict) else {}
+    meta_pagination = meta.get("pagination") if isinstance(meta, dict) else None
+    if isinstance(meta_pagination, dict):
+        pagination["page"] = meta_pagination.get("page", pagination["page"])
+        pagination["page_size"] = meta_pagination.get("pageSize", pagination["page_size"])
+        pagination["total"] = meta_pagination.get("total", pagination["total"])
+    return results, pagination
+
+
+def get_category(document_id: str):
+    try:
+        payload = _strapi_get_public(f"/api/categories/{document_id}")
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    if item is None:
+        raise StrapiNotFoundError
+    normalized = _normalize_category_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def list_categories_admin(*, page: int, page_size: int):
+    params = {
+        "pagination[page]": page,
+        "pagination[pageSize]": page_size,
+    }
+    try:
+        payload = _strapi_get_admin("/api/categories", params=params)
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+    results = []
+    for item in items:
+        normalized = _normalize_category_admin(item)
+        if normalized:
+            results.append(normalized)
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total": len(results),
+    }
+    meta = payload.get("meta", {}) if isinstance(payload, dict) else {}
+    meta_pagination = meta.get("pagination") if isinstance(meta, dict) else None
+    if isinstance(meta_pagination, dict):
+        pagination["page"] = meta_pagination.get("page", pagination["page"])
+        pagination["page_size"] = meta_pagination.get("pageSize", pagination["page_size"])
+        pagination["total"] = meta_pagination.get("total", pagination["total"])
+    return results, pagination
+
+
+def get_category_admin(document_id: str):
+    try:
+        payload = _strapi_get_admin(f"/api/categories/{document_id}")
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    if item is None:
+        raise StrapiNotFoundError
+    normalized = _normalize_category_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def create_category_admin(data):
+    try:
+        payload = _strapi_request(
+            "POST",
+            "/api/categories",
+            json={"data": data},
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    normalized = _normalize_category_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def update_category_admin(document_id: str, data):
+    try:
+        payload = _strapi_request(
+            "PUT",
+            f"/api/categories/{document_id}",
+            json={"data": data},
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    normalized = _normalize_category_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def delete_category_admin(document_id: str):
+    try:
+        _strapi_request(
+            "DELETE",
+            f"/api/categories/{document_id}",
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+
+
+def list_products_admin(*, page: int, page_size: int):
+    params = {
+        "pagination[page]": page,
+        "pagination[pageSize]": page_size,
+        "populate": "category",
+    }
+    try:
+        payload = _strapi_get_admin("/api/products", params=params)
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+    results = []
+    for item in items:
+        normalized = _normalize_product_admin(item)
+        if normalized:
+            results.append(normalized)
+    pagination = {
+        "page": page,
+        "page_size": page_size,
+        "total": len(results),
+    }
+    meta = payload.get("meta", {}) if isinstance(payload, dict) else {}
+    meta_pagination = meta.get("pagination") if isinstance(meta, dict) else None
+    if isinstance(meta_pagination, dict):
+        pagination["page"] = meta_pagination.get("page", pagination["page"])
+        pagination["page_size"] = meta_pagination.get("pageSize", pagination["page_size"])
+        pagination["total"] = meta_pagination.get("total", pagination["total"])
+    return results, pagination
+
+
+def get_product_admin(document_id: str):
+    params = {"populate": "category"}
+    try:
+        payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    if item is None:
+        raise StrapiNotFoundError
+    normalized = _normalize_product_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def create_product_admin(data):
+    try:
+        payload = _strapi_request(
+            "POST",
+            "/api/products",
+            json={"data": data},
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    normalized = _normalize_product_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def update_product_admin(document_id: str, data):
+    try:
+        payload = _strapi_request(
+            "PUT",
+            f"/api/products/{document_id}",
+            json={"data": data},
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    normalized = _normalize_product_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def update_product_admin_flat(document_id: str, data):
+    try:
+        payload = _strapi_request(
+            "PUT",
+            f"/api/products/{document_id}",
+            json=data,
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        response_text = exc.response_text or ""
+        if exc.status_code == 400 or "missing \"data\"" in response_text.lower():
+            payload = _strapi_request(
+                "PUT",
+                f"/api/products/{document_id}",
+                json={"data": data},
+                token=_get_admin_token(),
+            )
+        else:
+            raise exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    normalized = _normalize_product_admin(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def delete_product_admin(document_id: str):
+    try:
+        _strapi_request(
+            "DELETE",
+            f"/api/products/{document_id}",
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+
+
+def get_product_admin_raw(document_id: str):
+    params = {"populate": "category"}
+    try:
+        payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
+    except StrapiRequestError as exc:
+        raise exc
+    item = payload.get("data") if isinstance(payload, dict) else payload
+    if item is None:
+        raise StrapiNotFoundError
+    attrs = _extract_attributes(item)
+    if not attrs:
+        raise StrapiUnavailableError
+    return attrs
+
+
+def update_product_admin_raw(document_id: str, data):
+    try:
+        _strapi_request(
+            "PUT",
+            f"/api/products/{document_id}",
+            json={"data": data},
+            token=_get_admin_token(),
+        )
+    except StrapiRequestError as exc:
+        raise exc

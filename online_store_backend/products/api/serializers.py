@@ -7,6 +7,12 @@ class ProductCategorySerializer(serializers.Serializer):
     title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
 
 
+class CategorySerializer(serializers.Serializer):
+    id = serializers.CharField()
+    slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
+
 class ProductSerializer(serializers.Serializer):
     id = serializers.CharField()
     slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
