@@ -317,6 +317,10 @@ STRAPI_BASE_URL = env(
     "STRAPI_BASE_URL",
     default="http://strapi:1337",
 )
+STRAPI_PUBLIC_URL = env(
+    "STRAPI_PUBLIC_URL",
+    default="http://localhost:1337",
+)
 STRAPI_TIMEOUT_SECONDS = env.int("STRAPI_TIMEOUT_SECONDS", default=5)
 STRAPI_READ_API_TOKEN = env("STRAPI_READ_API_TOKEN")
 STRAPI_ADMIN_API_TOKEN = env("STRAPI_ADMIN_API_TOKEN")

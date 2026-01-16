@@ -6,16 +6,18 @@ from django.db import transaction
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from online_store_backend.cart.models import Cart
 from online_store_backend.cart.models import CartStatus
+from online_store_backend.cart.utils import get_active_cart
 
 from ..models import Order
 from ..models import OrderItem
 from ..models import OrderStatus
+from .serializers import OrderLookupSerializer
 from .serializers import OrderSerializer
 
 
@@ -29,15 +31,19 @@ class OrderViewSet(ReadOnlyModelViewSet):
     pagination_class = OrderPagination
 
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).prefetch_related("items")
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return Order.objects.all().prefetch_related("items")
+        return Order.objects.filter(user=user).prefetch_related("items")
 
-    @action(detail=False, methods=["post"], url_path="checkout")
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="checkout",
+        permission_classes=[AllowAny],
+    )
     def checkout(self, request):
-        cart = (
-            Cart.objects.filter(user=request.user, status=CartStatus.ACTIVE)
-            .prefetch_related("items")
-            .first()
-        )
+        cart = get_active_cart(request)
         if not cart:
             return Response({"detail": "Active cart not found."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -46,7 +52,10 @@ class OrderViewSet(ReadOnlyModelViewSet):
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            order = Order.objects.create(user=request.user, status=OrderStatus.PENDING, total=Decimal("0.00"))
+            order = Order.objects.create(status=OrderStatus.PENDING, total=Decimal("0.00"))
+            if request.user.is_authenticated:
+                order.user = request.user
+                order.save(update_fields=["user"])
             order_items = []
             total = Decimal("0.00")
 
@@ -59,6 +68,8 @@ class OrderViewSet(ReadOnlyModelViewSet):
                         product_id=item.product_id,
                         product_title_snapshot=item.product_title_snapshot,
                         unit_price_snapshot=item.unit_price_snapshot,
+                        currency_snapshot=item.currency_snapshot,
+                        image_url_snapshot=item.image_url_snapshot,
                         quantity=item.quantity,
                         line_total=line_total,
                     )
@@ -71,7 +82,7 @@ class OrderViewSet(ReadOnlyModelViewSet):
             cart.status = CartStatus.CHECKED_OUT
             cart.save(update_fields=["status", "updated_at"])
 
-            if request.user.email:
+            if request.user.is_authenticated and request.user.email:
                 from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@example.com")
 
                 def _send_confirmation():
@@ -87,3 +98,27 @@ class OrderViewSet(ReadOnlyModelViewSet):
 
         serializer = self.get_serializer(order)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="lookup",
+        permission_classes=[AllowAny],
+        authentication_classes=[],
+    )
+    def lookup(self, request):
+        number = request.query_params.get("number")
+        if not number:
+            return Response({"detail": "Order number is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            order_id = int(number)
+        except (TypeError, ValueError):
+            return Response({"detail": "Order number is invalid."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order = Order.objects.filter(id=order_id).prefetch_related("items").first()
+
+        if not order:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = OrderLookupSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)

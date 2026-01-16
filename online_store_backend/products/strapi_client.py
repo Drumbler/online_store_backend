@@ -38,7 +38,7 @@ def _format_price(value) -> str:
 def _absolute_media_url(url: str) -> str:
     if url.startswith("http://") or url.startswith("https://"):
         return url
-    base = settings.STRAPI_BASE_URL.rstrip("/") + "/"
+    base = settings.STRAPI_PUBLIC_URL.rstrip("/") + "/"
     return urljoin(base, url.lstrip("/"))
 
 
@@ -74,6 +74,34 @@ def _extract_image_url(image):
     if not attrs:
         return None
     url = attrs.get("url")
+    if not url:
+        return None
+    return _absolute_media_url(url)
+
+
+def _extract_thumbnail_url(image):
+    if not image:
+        return None
+    if isinstance(image, list):
+        if not image:
+            return None
+        return _extract_thumbnail_url(image[0])
+    if not isinstance(image, dict):
+        return None
+    if "data" in image:
+        image = image["data"]
+        if image is None:
+            return None
+    attrs = _extract_attributes(image)
+    if not attrs:
+        return None
+    formats = attrs.get("formats") or {}
+    if not isinstance(formats, dict):
+        return None
+    thumbnail = formats.get("thumbnail")
+    if not isinstance(thumbnail, dict):
+        return None
+    url = thumbnail.get("url")
     if not url:
         return None
     return _absolute_media_url(url)
@@ -115,6 +143,7 @@ def _normalize_product(item):
         "price": _format_price(attrs.get("price")),
         "currency": "RUB",
         "image_url": _extract_image_url(attrs.get("image")),
+        "thumbnail_url": _extract_thumbnail_url(attrs.get("image")),
         "category": _normalize_category(attrs.get("category")),
     }
 
@@ -213,30 +242,17 @@ def _strapi_get_admin(path, params=None):
     return _strapi_request("GET", path, params=params, token=_get_admin_token())
 
 
-def list_products(*, page: int, page_size: int):
-    params = {
+def list_products(*, page: int, page_size: int, params=None):
+    params = params or {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
-        "populate": "category",
-        "populate[image]": "true",
+        "populate[0]": "image",
+        "populate[1]": "category",
     }
     try:
         payload = _strapi_get_public("/api/products", params=params)
     except StrapiRequestError as exc:
-        if exc.status_code in {400, 500}:
-            logger.warning("Strapi rejected product list populate, retrying without image.")
-            params.pop("populate[image]", None)
-            try:
-                payload = _strapi_get_public("/api/products", params=params)
-            except StrapiRequestError as retry_exc:
-                logger.warning("Strapi rejected product list populate, retrying without populate.")
-                params.pop("populate", None)
-                try:
-                    payload = _strapi_get_public("/api/products", params=params)
-                except StrapiRequestError as final_exc:
-                    raise StrapiUnavailableError from final_exc
-        else:
-            raise StrapiUnavailableError from exc
+        raise StrapiUnavailableError from exc
     items = payload.get("data", []) if isinstance(payload, dict) else []
     results = []
     for item in items:
@@ -259,30 +275,36 @@ def list_products(*, page: int, page_size: int):
 
 def get_product(document_id: str):
     params = {
-        "populate": "category",
-        "populate[image]": "true",
+        "populate[0]": "image",
+        "populate[1]": "category",
     }
     try:
         payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
     except StrapiRequestError as exc:
-        if exc.status_code in {400, 500}:
-            logger.warning("Strapi rejected product populate, retrying without image.")
-            params.pop("populate[image]", None)
-            try:
-                payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
-            except StrapiRequestError as retry_exc:
-                logger.warning("Strapi rejected product populate, retrying without populate.")
-                params.pop("populate", None)
-                try:
-                    payload = _strapi_get_public(f"/api/products/{document_id}", params=params)
-                except StrapiRequestError as final_exc:
-                    raise StrapiUnavailableError from final_exc
-        else:
-            raise StrapiUnavailableError from exc
+        raise StrapiUnavailableError from exc
     item = payload.get("data") if isinstance(payload, dict) else payload
     if item is None:
         raise StrapiNotFoundError
     normalized = _normalize_product(item)
+    if not normalized:
+        raise StrapiUnavailableError
+    return normalized
+
+
+def get_product_by_slug(slug: str):
+    params = {
+        "filters[slug][$eq]": slug,
+        "populate[0]": "image",
+        "populate[1]": "category",
+    }
+    try:
+        payload = _strapi_get_public("/api/products", params=params)
+    except StrapiRequestError as exc:
+        raise StrapiUnavailableError from exc
+    items = payload.get("data", []) if isinstance(payload, dict) else []
+    if not items:
+        raise StrapiNotFoundError
+    normalized = _normalize_product(items[0])
     if not normalized:
         raise StrapiUnavailableError
     return normalized

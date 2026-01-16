@@ -24,6 +24,7 @@ admin_router.register("products", ProductAdminViewSet, basename="admin-products"
 
 app_name = "api"
 urlpatterns = [
+    path("auth/", include("online_store_backend.users.api.auth_urls")),
     path("cart/", include("online_store_backend.cart.urls")),
     path("admin/catalog/", include(admin_router.urls)),
     *router.urls,

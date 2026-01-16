@@ -7,13 +7,6 @@ from .models import CartItem
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    product_title_snapshot = serializers.CharField(required=False, allow_blank=True)
-    unit_price_snapshot = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-    )
-
     class Meta:
         model = CartItem
         fields = [
@@ -21,16 +14,22 @@ class CartItemSerializer(serializers.ModelSerializer):
             "product_id",
             "product_title_snapshot",
             "unit_price_snapshot",
+            "currency_snapshot",
+            "image_url_snapshot",
             "quantity",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = fields
 
-    def validate_quantity(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Quantity must be greater than 0.")
-        return value
+
+class CartItemCreateSerializer(serializers.Serializer):
+    product_id = serializers.CharField()
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class CartItemUpdateSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)
 
 
 class CartSerializer(serializers.ModelSerializer):

@@ -21,4 +21,5 @@ class ProductSerializer(serializers.Serializer):
     price = serializers.CharField()
     currency = serializers.CharField()
     image_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    thumbnail_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     category = ProductCategorySerializer(allow_null=True, required=False)

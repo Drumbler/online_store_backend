@@ -11,7 +11,7 @@ class OrderStatus(models.TextChoices):
 
 
 class Order(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders", null=True, blank=True)
     status = models.CharField(max_length=32, choices=OrderStatus.choices, default=OrderStatus.PENDING)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     created_at = models.DateTimeField(auto_now_add=True)
@@ -29,6 +29,8 @@ class OrderItem(models.Model):
     product_id = models.CharField(max_length=255)
     product_title_snapshot = models.CharField(max_length=255, blank=True)
     unit_price_snapshot = models.DecimalField(max_digits=10, decimal_places=2)
+    currency_snapshot = models.CharField(max_length=16, blank=True)
+    image_url_snapshot = models.URLField(max_length=1000, blank=True)
     quantity = models.PositiveIntegerField()
     line_total = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)

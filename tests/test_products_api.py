@@ -15,7 +15,7 @@ def clear_cache():
 
 @pytest.mark.django_db
 def test_products_list_returns_normalized_payload(api_client, monkeypatch):
-    def fake_list_products(*, page, page_size):
+    def fake_list_products(*, page, page_size, params=None):
         return (
             [
                 {
