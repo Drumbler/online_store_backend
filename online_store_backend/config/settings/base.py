@@ -229,6 +229,12 @@ EMAIL_BACKEND = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
+DEFAULT_FROM_EMAIL = env("DJANGO_DEFAULT_FROM_EMAIL", default="no-reply@localhost")
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+ACCOUNT_EMAIL_VERIFICATION_TOKEN_MAX_AGE = env.int(
+    "ACCOUNT_EMAIL_VERIFICATION_TOKEN_MAX_AGE",
+    default=60 * 60 * 24,
+)
 
 # ADMIN
 # ------------------------------------------------------------------------------

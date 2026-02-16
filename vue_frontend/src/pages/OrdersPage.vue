@@ -11,8 +11,26 @@
         <li v-for="order in orders" :key="order.id" class="order">
           <div>Order #{{ order.order_number ?? order.id }}</div>
           <div>Status: {{ order.status }}</div>
-          <div>Total: {{ order.total }}</div>
+          <div>Subtotal: {{ order.subtotal_original }} {{ orderCurrency(order) }}</div>
+          <div>Discount: -{{ order.discount_total }} {{ orderCurrency(order) }}</div>
+          <div>Total: {{ order.total }} {{ orderCurrency(order) }}</div>
           <div>Created: {{ order.created_at }}</div>
+          <ul v-if="order.items?.length" class="items">
+            <li v-for="item in order.items" :key="item.id" class="item-row">
+              <div>{{ item.product_title_snapshot }} x {{ item.quantity }}</div>
+              <div class="price">
+                <template v-if="Number(item.discount_percent || 0) > 0">
+                  <span class="old">{{ item.unit_price_original }}</span>
+                  <span class="new">{{ item.unit_price_final }}</span>
+                  <span class="badge">-{{ item.discount_percent }}%</span>
+                </template>
+                <template v-else>
+                  <span>{{ item.unit_price_final || item.unit_price_snapshot }}</span>
+                </template>
+              </div>
+              <div>Line total: {{ item.line_total }} {{ orderCurrency(order) }}</div>
+            </li>
+          </ul>
         </li>
       </ul>
       <p v-else class="status">No orders yet.</p>
@@ -30,11 +48,24 @@
       <div v-if="lookupResult" class="order">
         <div>Order #{{ lookupResult.order_number ?? lookupResult.id }}</div>
         <div>Status: {{ lookupResult.status }}</div>
+        <div>Subtotal: {{ lookupResult.subtotal_original }} {{ lookupResult.currency }}</div>
+        <div>Discount: -{{ lookupResult.discount_total }} {{ lookupResult.currency }}</div>
         <div>Total: {{ lookupResult.total_price }} {{ lookupResult.currency }}</div>
         <div>Created: {{ lookupResult.created_at }}</div>
         <ul v-if="lookupResult.items?.length" class="items">
           <li v-for="(item, index) in lookupResult.items" :key="index">
-            {{ item.title_snapshot }} × {{ item.quantity }} @ {{ item.unit_price_snapshot }}
+            <div>{{ item.title_snapshot }} x {{ item.quantity }}</div>
+            <div class="price">
+              <template v-if="Number(item.discount_percent || 0) > 0">
+                <span class="old">{{ item.unit_price_original }}</span>
+                <span class="new">{{ item.unit_price_final }}</span>
+                <span class="badge">-{{ item.discount_percent }}%</span>
+              </template>
+              <template v-else>
+                <span>{{ item.unit_price_final || item.unit_price_snapshot }}</span>
+              </template>
+            </div>
+            <div>Line total: {{ item.line_total }} {{ lookupResult.currency }}</div>
           </li>
         </ul>
       </div>
@@ -86,6 +117,11 @@ const submitLookup = async () => {
   }
 };
 
+const orderCurrency = (order: any) => {
+  const item = order?.items?.[0];
+  return item?.currency_snapshot || "RUB";
+};
+
 watch(isLoggedIn, (value) => {
   orders.value = [];
   lookupResult.value = null;
@@ -130,6 +166,39 @@ onMounted(() => {
   margin: 12px 0 0;
   display: grid;
   gap: 6px;
+}
+
+.item-row {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+}
+
+.price {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.old {
+  text-decoration: line-through;
+  color: #8a7b68;
+}
+
+.new {
+  font-weight: 600;
+  color: #2f4b2f;
+}
+
+.badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #efe4cf;
+  color: #4b3c2f;
+  font-size: 12px;
 }
 
 .lookup {

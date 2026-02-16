@@ -16,6 +16,8 @@ export type Product = {
   title?: string;
   description?: string | null;
   price?: string;
+  discounted_price?: string | null;
+  discount_percent?: number;
   currency?: string;
   image_url?: string | null;
   thumbnail_url?: string | null;

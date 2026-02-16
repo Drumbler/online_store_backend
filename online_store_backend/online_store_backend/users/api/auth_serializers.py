@@ -12,6 +12,18 @@ class UserPublicSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class UserMeSerializer(serializers.ModelSerializer):
+    is_admin = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "name", "is_staff", "is_superuser", "is_admin"]
+        read_only_fields = fields
+
+    def get_is_admin(self, user):
+        return bool(user.is_staff or user.is_superuser)
+
+
 class RegisterSerializer(serializers.Serializer):
     username = serializers.CharField()
     email = serializers.EmailField(required=False, allow_blank=True)

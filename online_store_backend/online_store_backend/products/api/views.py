@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from django.core.cache import cache
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
@@ -13,6 +14,7 @@ from ..strapi_client import StrapiNotFoundError
 from ..strapi_client import StrapiUnavailableError
 from ..strapi_client import get_category
 from ..strapi_client import get_product
+from ..strapi_client import get_product_by_slug
 from ..strapi_client import list_categories
 from ..strapi_client import list_products
 
@@ -171,6 +173,29 @@ class ProductViewSet(ViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         except StrapiUnavailableError:
             logger.exception("Strapi unavailable while retrieving product %s.", pk)
+            return Response(
+                {"detail": "Catalog service unavailable"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        serializer = self.serializer_class(product)
+        payload = serializer.data
+        cache.set(cache_key, payload, timeout=300)
+        return Response(payload, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path=r"by-slug/(?P<slug>[^/.]+)")
+    def by_slug(self, request, slug=None):
+        if not slug:
+            return Response({"detail": "Slug is required."}, status=status.HTTP_400_BAD_REQUEST)
+        cache_key = f"products:by-slug:{slug}"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached, status=status.HTTP_200_OK)
+        try:
+            product = get_product_by_slug(slug)
+        except StrapiNotFoundError:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        except StrapiUnavailableError:
+            logger.exception("Strapi unavailable while retrieving product by slug %s.", slug)
             return Response(
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,

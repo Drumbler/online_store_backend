@@ -6,6 +6,13 @@ class CategoryAdminSerializer(serializers.Serializer):
     id = serializers.CharField()
     slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    product_count = serializers.IntegerField(required=False)
+    derived_discount_percent = serializers.IntegerField(required=False, allow_null=True)
+    derived_discount_is_mixed = serializers.BooleanField(required=False)
+
+
+class CategoryDiscountApplySerializer(serializers.Serializer):
+    discount_percent = serializers.IntegerField(min_value=0, max_value=100)
 
 
 class ProductAdminCategorySerializer(serializers.Serializer):
@@ -22,6 +29,7 @@ class ProductAdminSerializer(serializers.Serializer):
     price = serializers.CharField()
     currency = serializers.CharField()
     category = ProductAdminCategorySerializer(allow_null=True, required=False)
+    discount_percent = serializers.IntegerField(required=False)
 
 
 class CategoryUpsertSerializer(serializers.Serializer):
@@ -56,6 +64,7 @@ class ProductUpsertSerializer(serializers.Serializer):
     currency = serializers.CharField(required=True, allow_blank=False)
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     publish = serializers.BooleanField(required=False, default=True)
+    discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
     def validate(self, attrs):
         slug_provided = "slug" in attrs
@@ -84,6 +93,7 @@ class ProductUpdateSerializer(serializers.Serializer):
     price = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=0)
     currency = serializers.CharField(required=False, allow_blank=False)
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
 
 class BulkUpdateOperationSerializer(serializers.Serializer):

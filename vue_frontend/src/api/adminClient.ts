@@ -9,7 +9,7 @@ export const adminApiClient = axios.create({
 });
 
 adminApiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Token ${token}`;

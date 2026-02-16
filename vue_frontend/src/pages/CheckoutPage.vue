@@ -18,6 +18,12 @@
       <button type="submit" :disabled="orderStore.loading">Place order</button>
     </form>
 
+    <div v-if="cartStore.cart" class="summary">
+      <div>Subtotal: {{ cartStore.cart.subtotal_original }} RUB</div>
+      <div>Discount: -{{ cartStore.cart.discount_total }} RUB</div>
+      <div class="total">Total: {{ cartStore.cart.total }} RUB</div>
+    </div>
+
     <div v-if="orderStore.error" class="status error">{{ orderStore.error }}</div>
     <div v-if="success" class="status">
       Order created. Number #{{ orderStore.lastOrder?.order_number ?? orderStore.lastOrder?.id }}.
@@ -27,12 +33,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useOrderStore } from "../stores/orders";
 import { useAuthStore } from "../stores/auth";
+import { useCartStore } from "../stores/cart";
 
 const orderStore = useOrderStore();
 const authStore = useAuthStore();
+const cartStore = useCartStore();
 
 const name = ref("");
 const phone = ref("");
@@ -51,8 +59,13 @@ const submit = async () => {
   const result = await orderStore.submitCheckout(payload);
   if (result) {
     success.value = true;
+    await cartStore.fetchCart();
   }
 };
+
+onMounted(() => {
+  cartStore.fetchCart();
+});
 </script>
 
 <style scoped>
@@ -84,5 +97,19 @@ label {
 .status.error {
   background: #ffe1e1;
   border-color: #f2b3b3;
+}
+
+.summary {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.summary .total {
+  font-weight: 700;
 }
 </style>

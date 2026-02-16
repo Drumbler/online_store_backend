@@ -23,3 +23,5 @@ class ProductSerializer(serializers.Serializer):
     image_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     thumbnail_url = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     category = ProductCategorySerializer(allow_null=True, required=False)
+    discount_percent = serializers.IntegerField(required=False)
+    discounted_price = serializers.CharField(allow_null=True, allow_blank=True, required=False)

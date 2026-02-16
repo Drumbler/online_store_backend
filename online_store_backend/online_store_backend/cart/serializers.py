@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import Cart
 from .models import CartItem
 
 
@@ -32,29 +31,36 @@ class CartItemUpdateSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1)
 
 
-class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True, read_only=True)
-    total_quantity = serializers.SerializerMethodField()
+class CartProductSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    slug = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    image_url = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    thumbnail_url = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    currency = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+
+
+class CartPricingItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    product = CartProductSerializer()
+    quantity = serializers.IntegerField(min_value=1)
+    unit_price_original = serializers.DecimalField(max_digits=12, decimal_places=2)
+    discount_percent = serializers.IntegerField(min_value=0, max_value=100)
+    unit_price_final = serializers.DecimalField(max_digits=12, decimal_places=2)
+    line_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class CartSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    items = CartPricingItemSerializer(many=True)
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+    total_quantity = serializers.IntegerField()
+    subtotal_original = serializers.DecimalField(max_digits=12, decimal_places=2)
+    subtotal_final = serializers.DecimalField(max_digits=12, decimal_places=2)
+    discount_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total = serializers.DecimalField(max_digits=12, decimal_places=2)
     total_price = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Cart
-        fields = [
-            "id",
-            "items",
-            "created_at",
-            "updated_at",
-            "total_quantity",
-            "total_price",
-        ]
-        read_only_fields = fields
-
-    def get_total_quantity(self, obj):
-        return sum(item.quantity for item in obj.items.all())
-
-    def get_total_price(self, obj):
-        total = sum(
-            (item.unit_price_snapshot * item.quantity for item in obj.items.all()),
-            Decimal("0.00"),
-        )
-        return total
+    def get_total_price(self, obj: dict):
+        return obj.get("total", Decimal("0.00"))

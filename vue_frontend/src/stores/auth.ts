@@ -8,6 +8,9 @@ export type AuthUser = {
   username: string;
   email?: string;
   name?: string;
+  is_staff?: boolean;
+  is_superuser?: boolean;
+  is_admin?: boolean;
 };
 
 export const useAuthStore = defineStore("auth", () => {
@@ -26,14 +29,14 @@ export const useAuthStore = defineStore("auth", () => {
   const register = async (payload: { username: string; email?: string; password: string }) => {
     const response = await registerUser(payload);
     setToken(response.data.token);
-    user.value = response.data.user;
+    await fetchMeProfile();
     return response.data;
   };
 
   const login = async (payload: { username_or_email: string; password: string }) => {
     const response = await loginUser(payload);
     setToken(response.data.token);
-    user.value = response.data.user;
+    await fetchMeProfile();
     return response.data;
   };
 

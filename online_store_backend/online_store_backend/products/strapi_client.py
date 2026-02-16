@@ -35,6 +35,29 @@ def _format_price(value) -> str:
     return format(decimal_value, "f")
 
 
+def _normalize_discount_percent(value) -> int:
+    if value is None:
+        return 0
+    try:
+        percent = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(100, percent))
+
+
+def _apply_discount(price: str, discount_percent: int) -> str:
+    if discount_percent <= 0:
+        return price
+    try:
+        decimal_price = Decimal(str(price))
+        discounted = (decimal_price * (Decimal("1") - Decimal(discount_percent) / Decimal("100"))).quantize(
+            Decimal("0.01")
+        )
+    except (InvalidOperation, ValueError):
+        return price
+    return format(discounted, "f")
+
+
 def _absolute_media_url(url: str) -> str:
     if url.startswith("http://") or url.startswith("https://"):
         return url
@@ -135,16 +158,21 @@ def _normalize_product(item):
     if not document_id:
         logger.error("Product missing documentId: %r", item)
         return None
+    discount_percent = _normalize_discount_percent(attrs.get("discount_percent"))
+    price = _format_price(attrs.get("price"))
+    discounted_price = _apply_discount(price, discount_percent) if discount_percent > 0 else None
     return {
         "id": str(document_id),
         "slug": attrs.get("slug"),
         "title": attrs.get("title"),
         "description": attrs.get("description"),
-        "price": _format_price(attrs.get("price")),
+        "price": price,
         "currency": "RUB",
         "image_url": _extract_image_url(attrs.get("image")),
         "thumbnail_url": _extract_thumbnail_url(attrs.get("image")),
         "category": _normalize_category(attrs.get("category")),
+        "discount_percent": discount_percent,
+        "discounted_price": discounted_price,
     }
 
 
@@ -171,6 +199,7 @@ def _normalize_product_admin(item):
     if not document_id:
         logger.error("Product missing documentId: %r", item)
         return None
+    discount_percent = _normalize_discount_percent(attrs.get("discount_percent"))
     return {
         "id": str(document_id),
         "slug": attrs.get("slug"),
@@ -179,6 +208,7 @@ def _normalize_product_admin(item):
         "price": _format_price(attrs.get("price")),
         "currency": attrs.get("currency") or "RUB",
         "category": _normalize_category(attrs.get("category")),
+        "discount_percent": discount_percent,
     }
 
 
@@ -397,15 +427,12 @@ def get_category_admin(document_id: str):
 
 
 def create_category_admin(data):
-    try:
-        payload = _strapi_request(
-            "POST",
-            "/api/categories",
-            json={"data": data},
-            token=_get_admin_token(),
-        )
-    except StrapiRequestError as exc:
-        raise StrapiUnavailableError from exc
+    payload = _strapi_request(
+        "POST",
+        "/api/categories",
+        json={"data": data},
+        token=_get_admin_token(),
+    )
     item = payload.get("data") if isinstance(payload, dict) else payload
     normalized = _normalize_category_admin(item)
     if not normalized:
@@ -414,15 +441,12 @@ def create_category_admin(data):
 
 
 def update_category_admin(document_id: str, data):
-    try:
-        payload = _strapi_request(
-            "PUT",
-            f"/api/categories/{document_id}",
-            json={"data": data},
-            token=_get_admin_token(),
-        )
-    except StrapiRequestError as exc:
-        raise StrapiUnavailableError from exc
+    payload = _strapi_request(
+        "PUT",
+        f"/api/categories/{document_id}",
+        json={"data": data},
+        token=_get_admin_token(),
+    )
     item = payload.get("data") if isinstance(payload, dict) else payload
     normalized = _normalize_category_admin(item)
     if not normalized:
@@ -441,8 +465,8 @@ def delete_category_admin(document_id: str):
         raise StrapiUnavailableError from exc
 
 
-def list_products_admin(*, page: int, page_size: int):
-    params = {
+def list_products_admin(*, page: int, page_size: int, params=None):
+    params = params or {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
         "populate": "category",
@@ -487,15 +511,12 @@ def get_product_admin(document_id: str):
 
 
 def create_product_admin(data):
-    try:
-        payload = _strapi_request(
-            "POST",
-            "/api/products",
-            json={"data": data},
-            token=_get_admin_token(),
-        )
-    except StrapiRequestError as exc:
-        raise StrapiUnavailableError from exc
+    payload = _strapi_request(
+        "POST",
+        "/api/products",
+        json={"data": data},
+        token=_get_admin_token(),
+    )
     item = payload.get("data") if isinstance(payload, dict) else payload
     normalized = _normalize_product_admin(item)
     if not normalized:
@@ -504,15 +525,12 @@ def create_product_admin(data):
 
 
 def update_product_admin(document_id: str, data):
-    try:
-        payload = _strapi_request(
-            "PUT",
-            f"/api/products/{document_id}",
-            json={"data": data},
-            token=_get_admin_token(),
-        )
-    except StrapiRequestError as exc:
-        raise StrapiUnavailableError from exc
+    payload = _strapi_request(
+        "PUT",
+        f"/api/products/{document_id}",
+        json={"data": data},
+        token=_get_admin_token(),
+    )
     item = payload.get("data") if isinstance(payload, dict) else payload
     normalized = _normalize_product_admin(item)
     if not normalized:

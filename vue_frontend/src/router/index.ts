@@ -8,12 +8,16 @@ import CheckoutPage from "../pages/CheckoutPage.vue";
 import OrdersPage from "../pages/OrdersPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
+import AccountPage from "../pages/AccountPage.vue";
+import VerifyEmailPage from "../pages/VerifyEmailPage.vue";
 import AdminLayout from "../layouts/AdminLayout.vue";
 import AdminLoginPage from "../pages/AdminLoginPage.vue";
 import AdminProductsPage from "../pages/AdminProductsPage.vue";
 import AdminCategoriesPage from "../pages/AdminCategoriesPage.vue";
 import AdminOrdersPage from "../pages/AdminOrdersPage.vue";
 import AdminReportsPage from "../pages/AdminReportsPage.vue";
+import AdminUsersPage from "../pages/AdminUsersPage.vue";
+import { useAuthStore } from "../stores/auth";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +28,13 @@ const router = createRouter({
     { path: "/cart", name: "cart", component: CartPage },
     { path: "/checkout", name: "checkout", component: CheckoutPage },
     { path: "/orders", name: "orders", component: OrdersPage },
+    { path: "/account", name: "account", component: AccountPage, meta: { requiresAuth: true } },
+    {
+      path: "/account/verify-email",
+      name: "verify-email",
+      component: VerifyEmailPage,
+      meta: { requiresAuth: true }
+    },
     { path: "/login", name: "login", component: LoginPage },
     { path: "/register", name: "register", component: RegisterPage },
     { path: "/admin/login", name: "admin-login", component: AdminLoginPage },
@@ -35,19 +46,43 @@ const router = createRouter({
         { path: "products", name: "admin-products", component: AdminProductsPage },
         { path: "categories", name: "admin-categories", component: AdminCategoriesPage },
         { path: "orders", name: "admin-orders", component: AdminOrdersPage },
-        { path: "reports", name: "admin-reports", component: AdminReportsPage }
+        { path: "reports", name: "admin-reports", component: AdminReportsPage },
+        { path: "users", name: "admin-users", component: AdminUsersPage }
       ]
     }
   ]
 });
 
-router.beforeEach((to) => {
-  if (to.path.startsWith("/admin") && to.path !== "/admin/login") {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      return { path: "/admin/login", query: { redirect: to.fullPath } };
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore();
+  if (to.meta.requiresAuth) {
+    if (!authStore.token) {
+      return { path: "/login", query: { redirect: to.fullPath } };
+    }
+    if (!authStore.user) {
+      await authStore.fetchMe();
     }
   }
+
+  if (!to.path.startsWith("/admin")) {
+    return true;
+  }
+
+  if (!authStore.token) {
+    return { path: "/login", query: { redirect: to.fullPath } };
+  }
+
+  if (!authStore.user) {
+    await authStore.fetchMe();
+  }
+
+  const isAdmin = Boolean(
+    authStore.user?.is_admin || authStore.user?.is_staff || authStore.user?.is_superuser
+  );
+  if (!isAdmin) {
+    return { path: "/" };
+  }
+
   return true;
 });
 

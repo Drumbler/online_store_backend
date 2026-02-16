@@ -5,16 +5,29 @@ import { addCartItem, deleteCartItem, getCart, updateCartItem } from "../api/pub
 
 export type CartItem = {
   id: number | string;
-  product_id: string;
-  product_title_snapshot?: string;
-  unit_price_snapshot?: string;
+  product: {
+    id: string;
+    title?: string;
+    slug?: string;
+    image_url?: string | null;
+    thumbnail_url?: string | null;
+    currency?: string;
+  };
+  unit_price_original: string;
+  discount_percent: number;
+  unit_price_final: string;
+  line_total: string;
   quantity: number;
 };
 
 export type Cart = {
   id: number | string;
   items: CartItem[];
-  total_quantity?: number;
+  total_quantity: number;
+  subtotal_original: string;
+  subtotal_final: string;
+  discount_total: string;
+  total: string;
   total_price?: string;
 };
 

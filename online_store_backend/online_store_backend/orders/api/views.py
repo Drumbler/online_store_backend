@@ -1,4 +1,5 @@
 from decimal import Decimal
+from decimal import InvalidOperation
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -13,10 +14,16 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from online_store_backend.cart.models import CartStatus
 from online_store_backend.cart.utils import get_active_cart
+from online_store_backend.products.strapi_client import StrapiNotFoundError
+from online_store_backend.products.strapi_client import StrapiUnavailableError
+from online_store_backend.products.strapi_client import get_product
 
 from ..models import Order
 from ..models import OrderItem
 from ..models import OrderStatus
+from ..pricing import clamp_discount_percent
+from ..pricing import compute_discounted_unit_price
+from ..pricing import compute_line_total
 from .serializers import OrderLookupSerializer
 from .serializers import OrderSerializer
 
@@ -51,6 +58,42 @@ class OrderViewSet(ReadOnlyModelViewSet):
         if not cart_items:
             return Response({"detail": "Cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
+        priced_items = []
+        for item in cart_items:
+            try:
+                product = get_product(item.product_id)
+            except StrapiNotFoundError:
+                return Response(
+                    {"detail": f"Product {item.product_id} not found."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except StrapiUnavailableError:
+                return Response(
+                    {"detail": "Catalog service unavailable"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            try:
+                unit_price_original = Decimal(product.get("price", "0.00"))
+            except (InvalidOperation, TypeError):
+                return Response(
+                    {"detail": "Catalog service unavailable"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            discount_percent = clamp_discount_percent(product.get("discount_percent", 0))
+            unit_price_final = compute_discounted_unit_price(unit_price_original, discount_percent)
+            line_total = compute_line_total(unit_price_final, item.quantity)
+            priced_items.append(
+                {
+                    "item": item,
+                    "product": product,
+                    "unit_price_original": unit_price_original,
+                    "discount_percent": discount_percent,
+                    "unit_price_final": unit_price_final,
+                    "line_total": line_total,
+                }
+            )
+
         with transaction.atomic():
             order = Order.objects.create(status=OrderStatus.PENDING, total=Decimal("0.00"))
             if request.user.is_authenticated:
@@ -59,17 +102,22 @@ class OrderViewSet(ReadOnlyModelViewSet):
             order_items = []
             total = Decimal("0.00")
 
-            for item in cart_items:
-                line_total = item.unit_price_snapshot * item.quantity
+            for priced in priced_items:
+                item = priced["item"]
+                product = priced["product"]
+                line_total = priced["line_total"]
                 total += line_total
                 order_items.append(
                     OrderItem(
                         order=order,
                         product_id=item.product_id,
-                        product_title_snapshot=item.product_title_snapshot,
-                        unit_price_snapshot=item.unit_price_snapshot,
-                        currency_snapshot=item.currency_snapshot,
-                        image_url_snapshot=item.image_url_snapshot,
+                        product_title_snapshot=product.get("title") or item.product_title_snapshot,
+                        unit_price_original=priced["unit_price_original"],
+                        discount_percent=priced["discount_percent"],
+                        unit_price_final=priced["unit_price_final"],
+                        unit_price_snapshot=priced["unit_price_final"],
+                        currency_snapshot=product.get("currency") or item.currency_snapshot,
+                        image_url_snapshot=product.get("image_url") or item.image_url_snapshot,
                         quantity=item.quantity,
                         line_total=line_total,
                     )

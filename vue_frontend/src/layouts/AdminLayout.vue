@@ -6,6 +6,7 @@
         <RouterLink to="/admin/categories">Categories</RouterLink>
         <RouterLink to="/admin/orders">Orders</RouterLink>
         <RouterLink to="/admin/reports">Reports</RouterLink>
+        <RouterLink to="/admin/users">Users</RouterLink>
         <RouterLink to="/">Back to shop</RouterLink>
         <button class="link-button" type="button" @click="handleLogout">Logout</button>
       </nav>
@@ -18,13 +19,13 @@
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import { useAdminAuthStore } from "../stores/adminAuth";
+import { useAuthStore } from "../stores/auth";
 
 const router = useRouter();
-const adminAuthStore = useAdminAuthStore();
+const authStore = useAuthStore();
 
 const handleLogout = async () => {
-  adminAuthStore.clearToken();
+  await authStore.logout();
   await router.push("/");
 };
 </script>

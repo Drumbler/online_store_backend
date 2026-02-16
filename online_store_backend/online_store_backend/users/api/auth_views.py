@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from .auth_serializers import LoginSerializer
 from .auth_serializers import RegisterSerializer
+from .auth_serializers import UserMeSerializer
 from .auth_serializers import UserPublicSerializer
 
 
@@ -43,7 +44,7 @@ class MeView(APIView):
     authentication_classes = [TokenAuthentication]
 
     def get(self, request):
-        return Response(UserPublicSerializer(request.user).data)
+        return Response(UserMeSerializer(request.user).data)
 
 
 class LogoutView(APIView):

@@ -9,23 +9,28 @@ from online_store_backend.products.api.admin_views import CategoryAdminViewSet
 from online_store_backend.products.api.admin_views import ProductAdminViewSet
 from online_store_backend.products.api.views import CategoryViewSet
 from online_store_backend.products.api.views import ProductViewSet
+from online_store_backend.users.api.admin_views import AdminUserViewSet
 from online_store_backend.users.api.views import UserViewSet
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
-admin_router = DefaultRouter() if settings.DEBUG else SimpleRouter()
+admin_catalog_router = DefaultRouter() if settings.DEBUG else SimpleRouter()
+admin_user_router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 
 router.register("users", UserViewSet)
 router.register("orders", OrderViewSet, basename="orders")
 router.register("categories", CategoryViewSet, basename="categories")
 router.register("products", ProductViewSet, basename="products")
-admin_router.register("categories", CategoryAdminViewSet, basename="admin-categories")
-admin_router.register("products", ProductAdminViewSet, basename="admin-products")
+admin_catalog_router.register("categories", CategoryAdminViewSet, basename="admin-categories")
+admin_catalog_router.register("products", ProductAdminViewSet, basename="admin-products")
+admin_user_router.register("users", AdminUserViewSet, basename="admin-users")
 
 
 app_name = "api"
 urlpatterns = [
     path("auth/", include("online_store_backend.users.api.auth_urls")),
+    path("account/", include("online_store_backend.users.api.account_urls")),
     path("cart/", include("online_store_backend.cart.urls")),
-    path("admin/catalog/", include(admin_router.urls)),
+    path("admin/catalog/", include(admin_catalog_router.urls)),
+    path("admin/", include(admin_user_router.urls)),
     *router.urls,
 ]

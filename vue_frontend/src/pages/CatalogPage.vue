@@ -55,7 +55,16 @@
               <div v-else class="card-placeholder">No image</div>
               <h3>{{ product.title }}</h3>
             </RouterLink>
-            <p class="price">{{ product.price }} {{ product.currency }}</p>
+            <div class="price">
+              <template v-if="hasDiscount(product)">
+                <span class="old">{{ product.price }} {{ product.currency }}</span>
+                <span class="new">{{ discountedPrice(product) }} {{ product.currency }}</span>
+                <span class="badge">-{{ product.discount_percent }}%</span>
+              </template>
+              <template v-else>
+                <span>{{ product.price }} {{ product.currency }}</span>
+              </template>
+            </div>
             <button @click="addToCart(product.id)">Add to cart</button>
           </article>
         </div>
@@ -128,6 +137,21 @@ const addToCart = (productId?: string) => {
     return;
   }
   cartStore.addToCart(productId, 1);
+};
+
+const hasDiscount = (product: any) => {
+  const discount = Number(product.discount_percent || 0);
+  return discount > 0;
+};
+
+const discountedPrice = (product: any) => {
+  if (product.discounted_price) {
+    return product.discounted_price;
+  }
+  const price = Number(product.price || 0);
+  const discount = Number(product.discount_percent || 0);
+  const discounted = price * (1 - discount / 100);
+  return discounted.toFixed(2);
 };
 
 onMounted(() => {
@@ -233,7 +257,31 @@ watch(
 }
 
 .price {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   font-weight: 600;
+}
+
+.price .old {
+  text-decoration: line-through;
+  color: #8a7b68;
+  font-weight: 400;
+}
+
+.price .new {
+  color: #2f4b2f;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #efe4cf;
+  color: #4b3c2f;
+  font-size: 12px;
+  width: fit-content;
 }
 
 .status {
