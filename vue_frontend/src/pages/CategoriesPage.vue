@@ -1,13 +1,13 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <h1>Categories</h1>
 
-    <div v-if="catalogStore.loading" class="status">Loading...</div>
-    <div v-else-if="catalogStore.error" class="status error">{{ catalogStore.error }}</div>
+    <div v-if="catalogStore.loading" class="state-box">Loading...</div>
+    <div v-else-if="catalogStore.error" class="state-box error">{{ catalogStore.error }}</div>
 
     <ul v-else class="list">
       <li v-for="category in catalogStore.categories" :key="category.id">
-        <button class="link" @click="goToCategory(category.slug || '')">
+        <button type="button" class="category-link btn btn-neutral" @click="goToCategory(category.slug || '')">
           {{ category.title || category.slug || category.id }}
         </button>
       </li>
@@ -49,29 +49,19 @@ onMounted(() => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.link {
-  background: none;
-  border: none;
-  color: #1a1a1a;
-  text-align: left;
-  padding: 0;
+.category-link {
+  width: 100%;
+  justify-content: flex-start;
+  color: var(--text);
+  border-color: var(--border);
 }
 
-.link:hover {
-  text-decoration: underline;
+.category-link:hover {
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
-.status {
-  padding: 12px;
-  background: #fff6d8;
-  border: 1px solid #f0dca0;
-}
-
-.status.error {
-  background: #ffe1e1;
-  border-color: #f2b3b3;
-}
 </style>

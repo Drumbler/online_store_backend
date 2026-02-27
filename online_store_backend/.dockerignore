@@ -8,5 +8,10 @@
 .readthedocs.yml
 .travis.yml
 venv
+.venv
 .git
 .envs/
+.ipython/
+.pytest_cache/
+__pycache__/
+*.pyc

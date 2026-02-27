@@ -8,6 +8,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
+from online_store_backend.orders.models import ProductViewEvent
+
 from .serializers import CategorySerializer
 from .serializers import ProductSerializer
 from ..strapi_client import StrapiNotFoundError
@@ -181,6 +183,14 @@ class ProductViewSet(ViewSet):
         payload = serializer.data
         cache.set(cache_key, payload, timeout=300)
         return Response(payload, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="track-view")
+    def track_view(self, request, pk=None):
+        product_id = str(pk or "").strip()
+        if not product_id:
+            return Response({"detail": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        ProductViewEvent.objects.create(product_id=product_id)
+        return Response({"ok": True}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path=r"by-slug/(?P<slug>[^/.]+)")
     def by_slug(self, request, slug=None):

@@ -5,6 +5,9 @@
         <RouterLink to="/admin/products">Products</RouterLink>
         <RouterLink to="/admin/categories">Categories</RouterLink>
         <RouterLink to="/admin/orders">Orders</RouterLink>
+        <RouterLink to="/admin/reviews">Reviews</RouterLink>
+        <RouterLink to="/admin/integrations">Integrations</RouterLink>
+        <RouterLink to="/admin/appearance">Appearance</RouterLink>
         <RouterLink to="/admin/reports">Reports</RouterLink>
         <RouterLink to="/admin/users">Users</RouterLink>
         <RouterLink to="/">Back to shop</RouterLink>

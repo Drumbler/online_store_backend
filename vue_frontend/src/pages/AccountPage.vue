@@ -1,23 +1,23 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <h1>Account</h1>
 
-    <div v-if="loading" class="status">Loading profile...</div>
+    <div v-if="loading" class="state-box">Loading profile...</div>
     <div v-else>
-      <div class="card">
+      <div class="card surface-card">
         <h2>Display name</h2>
         <div class="field">
           <label for="display-name">Display name</label>
           <input id="display-name" v-model="nameInput" type="text" placeholder="Enter your name" />
         </div>
         <div class="actions">
-          <button type="button" :disabled="nameSaving" @click="saveName">Save</button>
-          <span v-if="nameStatus" class="status success">{{ nameStatus }}</span>
-          <span v-if="nameError" class="status error">{{ nameError }}</span>
+          <button type="button" class="btn btn-primary" :disabled="nameSaving" @click="saveName">Save</button>
+          <span v-if="nameStatus" class="state-box success">{{ nameStatus }}</span>
+          <span v-if="nameError" class="state-box error">{{ nameError }}</span>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card surface-card">
         <h2>Email</h2>
         <div class="field">
           <label for="email">Email</label>
@@ -32,20 +32,20 @@
         <p v-if="emailHelperText" class="helper">{{ emailHelperText }}</p>
         <p v-if="emailVerifiedLabel" class="helper success">Verified</p>
         <div class="actions">
-          <button type="button" :disabled="emailChangeDisabled" @click="enableEmailEditing">
+          <button type="button" class="btn btn-neutral" :disabled="emailChangeDisabled" @click="enableEmailEditing">
             Change
           </button>
-          <button type="button" :disabled="emailConfirmDisabled" @click="confirmEmail">
+          <button type="button" class="btn btn-primary" :disabled="emailConfirmDisabled" @click="confirmEmail">
             Confirm
           </button>
         </div>
         <div class="status-group">
-          <span v-if="emailStatus" class="status success">{{ emailStatus }}</span>
-          <span v-if="emailError" class="status error">{{ emailError }}</span>
+          <span v-if="emailStatus" class="state-box success">{{ emailStatus }}</span>
+          <span v-if="emailError" class="state-box error">{{ emailError }}</span>
         </div>
       </div>
 
-      <div class="card">
+      <div class="card surface-card">
         <h2>Change password</h2>
         <form class="form" @submit.prevent="submitPassword">
           <label class="field">
@@ -61,22 +61,22 @@
             <input v-model="newPasswordConfirm" type="password" required />
           </label>
           <div class="actions">
-            <button type="submit" :disabled="passwordSaving">Change password</button>
+            <button type="submit" class="btn btn-primary" :disabled="passwordSaving">Change password</button>
           </div>
         </form>
         <div class="status-group">
-          <span v-if="passwordStatus" class="status success">{{ passwordStatus }}</span>
-          <span v-if="passwordError" class="status error">{{ passwordError }}</span>
+          <span v-if="passwordStatus" class="state-box success">{{ passwordStatus }}</span>
+          <span v-if="passwordError" class="state-box error">{{ passwordError }}</span>
         </div>
       </div>
-      <div class="card">
+      <div class="card surface-card">
         <h2>Session</h2>
         <div class="actions">
-          <button type="button" class="danger-button" @click="handleLogout">Logout</button>
+          <button type="button" class="btn btn-outline danger-button" @click="handleLogout">Logout</button>
         </div>
         <div class="status-group">
-          <span v-if="logoutStatus" class="status success">{{ logoutStatus }}</span>
-          <span v-if="logoutError" class="status error">{{ logoutError }}</span>
+          <span v-if="logoutStatus" class="state-box success">{{ logoutStatus }}</span>
+          <span v-if="logoutError" class="state-box error">{{ logoutError }}</span>
         </div>
       </div>
     </div>
@@ -269,25 +269,16 @@ const handleLogout = async () => {
 }
 
 .card {
-  border: 1px solid #e0e0e0;
   padding: 16px;
-  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #fff;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.field input {
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #d0d0d0;
 }
 
 .actions {
@@ -303,30 +294,13 @@ const handleLogout = async () => {
   gap: 8px;
 }
 
-.status {
-  padding: 10px;
-  background: #fff6d8;
-  border: 1px solid #f0dca0;
-  border-radius: 6px;
-}
-
-.status.success {
-  background: #e8f7e8;
-  border-color: #b9e2b9;
-}
-
-.status.error {
-  background: #ffe1e1;
-  border-color: #f2b3b3;
-}
-
 .helper {
-  color: #6b6b6b;
+  color: var(--muted);
   margin: 0;
 }
 
 .helper.success {
-  color: #1a7f37;
+  color: color-mix(in srgb, #2f8f52 75%, var(--text));
 }
 
 .form {
@@ -336,11 +310,8 @@ const handleLogout = async () => {
 }
 
 .danger-button {
-  padding: 8px 14px;
-  border-radius: 6px;
-  border: 1px solid #c62828;
-  background: #ffecec;
-  color: #b71c1c;
-  font-weight: 600;
+  border-color: color-mix(in srgb, #d13b3b 45%, var(--border));
+  color: color-mix(in srgb, #d13b3b 78%, var(--text));
+  background: color-mix(in srgb, #d13b3b 12%, transparent);
 }
 </style>

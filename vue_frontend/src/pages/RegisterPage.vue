@@ -1,5 +1,5 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <h1>Create account</h1>
 
     <form class="form" @submit.prevent="submit">
@@ -15,10 +15,10 @@
         <span>Password</span>
         <input v-model="password" type="password" required />
       </label>
-      <button type="submit" :disabled="loading">Register</button>
+      <button type="submit" class="btn btn-primary" :disabled="loading">Register</button>
     </form>
 
-    <p v-if="error" class="status error">{{ error }}</p>
+    <p v-if="error" class="state-box error">{{ error }}</p>
   </section>
 </template>
 
@@ -74,14 +74,4 @@ const submit = async () => {
   gap: 6px;
 }
 
-.status {
-  padding: 12px;
-  background: #fff6d8;
-  border: 1px solid #f0dca0;
-}
-
-.status.error {
-  background: #ffe1e1;
-  border-color: #f2b3b3;
-}
 </style>

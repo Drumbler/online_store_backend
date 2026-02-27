@@ -6,6 +6,8 @@ import ProductPage from "../pages/ProductPage.vue";
 import CartPage from "../pages/CartPage.vue";
 import CheckoutPage from "../pages/CheckoutPage.vue";
 import OrdersPage from "../pages/OrdersPage.vue";
+import PayPage from "../pages/PayPage.vue";
+import DemoPayPage from "../pages/DemoPayPage.vue";
 import LoginPage from "../pages/LoginPage.vue";
 import RegisterPage from "../pages/RegisterPage.vue";
 import AccountPage from "../pages/AccountPage.vue";
@@ -15,6 +17,9 @@ import AdminLoginPage from "../pages/AdminLoginPage.vue";
 import AdminProductsPage from "../pages/AdminProductsPage.vue";
 import AdminCategoriesPage from "../pages/AdminCategoriesPage.vue";
 import AdminOrdersPage from "../pages/AdminOrdersPage.vue";
+import AdminReviewsPage from "../pages/AdminReviewsPage.vue";
+import AdminIntegrationsPage from "../pages/AdminIntegrationsPage.vue";
+import AdminAppearancePage from "../pages/AdminAppearancePage.vue";
 import AdminReportsPage from "../pages/AdminReportsPage.vue";
 import AdminUsersPage from "../pages/AdminUsersPage.vue";
 import { useAuthStore } from "../stores/auth";
@@ -28,6 +33,9 @@ const router = createRouter({
     { path: "/cart", name: "cart", component: CartPage },
     { path: "/checkout", name: "checkout", component: CheckoutPage },
     { path: "/orders", name: "orders", component: OrdersPage },
+    { path: "/orders/find", name: "orders-find", component: OrdersPage },
+    { path: "/pay", name: "pay", component: PayPage },
+    { path: "/demo-pay", name: "demo-pay", component: DemoPayPage },
     { path: "/account", name: "account", component: AccountPage, meta: { requiresAuth: true } },
     {
       path: "/account/verify-email",
@@ -46,6 +54,9 @@ const router = createRouter({
         { path: "products", name: "admin-products", component: AdminProductsPage },
         { path: "categories", name: "admin-categories", component: AdminCategoriesPage },
         { path: "orders", name: "admin-orders", component: AdminOrdersPage },
+        { path: "reviews", name: "admin-reviews", component: AdminReviewsPage },
+        { path: "integrations", name: "admin-integrations", component: AdminIntegrationsPage },
+        { path: "appearance", name: "admin-appearance", component: AdminAppearancePage },
         { path: "reports", name: "admin-reports", component: AdminReportsPage },
         { path: "users", name: "admin-users", component: AdminUsersPage }
       ]

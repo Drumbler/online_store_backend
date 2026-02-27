@@ -1,11 +1,11 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <h1>Cart</h1>
 
-    <div v-if="cartStore.loading" class="status">Loading...</div>
-    <div v-else-if="cartStore.error" class="status error">{{ cartStore.error }}</div>
+    <div v-if="cartStore.loading" class="state-box">Loading...</div>
+    <div v-else-if="cartStore.error" class="state-box error">{{ cartStore.error }}</div>
 
-    <table v-else class="table">
+    <table v-else class="table surface-card">
       <thead>
         <tr>
           <th>Item</th>
@@ -44,20 +44,20 @@
           </td>
           <td>{{ item.line_total }} {{ item.product.currency || "RUB" }}</td>
           <td>
-            <button @click="cartStore.removeItem(item.id)">Remove</button>
+            <button class="btn btn-neutral btn-remove" @click="cartStore.removeItem(item.id)">Remove</button>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <div v-if="cartStore.cart" class="summary">
+    <div v-if="cartStore.cart" class="summary surface-card">
       <div>Subtotal: {{ cartStore.cart.subtotal_original }} RUB</div>
       <div>Discount: -{{ cartStore.cart.discount_total }} RUB</div>
       <div class="total">Total: {{ cartStore.cart.total }} RUB</div>
     </div>
 
     <div class="actions">
-      <RouterLink to="/checkout">Checkout</RouterLink>
+      <RouterLink to="/checkout" class="btn btn-primary">Checkout</RouterLink>
     </div>
   </section>
 </template>
@@ -91,12 +91,19 @@ onMounted(() => {
 .table {
   width: 100%;
   border-collapse: collapse;
+  border-spacing: 0;
+  overflow: hidden;
 }
 
 th, td {
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
   padding: 8px;
   text-align: left;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
 }
 
 .actions {
@@ -112,12 +119,12 @@ th, td {
 
 .old {
   text-decoration: line-through;
-  color: #8a7b68;
+  color: var(--muted);
 }
 
 .new {
   font-weight: 600;
-  color: #2f4b2f;
+  color: var(--primary);
 }
 
 .badge {
@@ -125,8 +132,8 @@ th, td {
   width: fit-content;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #efe4cf;
-  color: #4b3c2f;
+  background: var(--primary-soft);
+  color: var(--primary-soft-contrast);
   font-size: 12px;
 }
 
@@ -137,22 +144,14 @@ th, td {
   flex-direction: column;
   gap: 6px;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  background: #fff;
 }
 
 .summary .total {
   font-weight: 700;
 }
 
-.status {
-  padding: 12px;
-  background: #fff6d8;
-  border: 1px solid #f0dca0;
-}
-
-.status.error {
-  background: #ffe1e1;
-  border-color: #f2b3b3;
+.btn-remove {
+  min-height: 34px;
+  padding: 6px 10px;
 }
 </style>

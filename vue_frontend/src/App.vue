@@ -1,22 +1,29 @@
 <template>
-  <div class="app">
+  <div class="app" :style="storefrontStyle" :class="{ 'storefront-dark': isStorefrontDark }">
     <header v-if="showPublicNav" class="navbar">
-      <nav class="nav-links">
+      <nav class="nav-links" aria-label="Store navigation">
         <div class="nav-left">
-          <RouterLink to="/">Catalog</RouterLink>
-          <RouterLink to="/categories">Categories</RouterLink>
-          <RouterLink to="/orders">{{ isLoggedIn ? "My orders" : "Track order" }}</RouterLink>
-          <RouterLink v-if="isAdmin" to="/admin">Admin</RouterLink>
-          <RouterLink v-if="!isLoggedIn" to="/login">Login</RouterLink>
-          <RouterLink v-if="!isLoggedIn" to="/register">Register</RouterLink>
-        </div>
-        <div class="nav-right">
-          <RouterLink v-if="isLoggedIn" to="/account" class="account-button">
-            Личный кабинет
+          <RouterLink to="/" class="brand-link" :aria-label="`${shopName} home`">
+            <img v-if="logoUrl" :src="logoUrl" alt="Shop logo" class="shop-logo" />
+            <span v-else class="shop-name">{{ shopName }}</span>
           </RouterLink>
-          <RouterLink to="/cart" class="cart-button" aria-label="Cart">
+        </div>
+
+        <div class="nav-center">
+          <div class="nav-center-links">
+            <RouterLink to="/" class="nav-link">Catalog</RouterLink>
+            <RouterLink to="/categories" class="nav-link">Categories</RouterLink>
+            <RouterLink to="/orders" class="nav-link">{{ isLoggedIn ? "My orders" : "Track order" }}</RouterLink>
+            <RouterLink v-if="isAdmin" to="/admin" class="nav-link">Admin</RouterLink>
+            <RouterLink v-if="!isLoggedIn" to="/login" class="nav-link">Login</RouterLink>
+            <RouterLink v-if="!isLoggedIn" to="/register" class="nav-link">Register</RouterLink>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <RouterLink to="/cart" class="icon-btn" aria-label="Cart" title="Cart">
             <svg
-              class="cart-icon"
+              class="icon-svg"
               viewBox="0 0 24 24"
               role="img"
               aria-hidden="true"
@@ -29,27 +36,71 @@
             </svg>
             <span v-if="cartCount" class="cart-badge">{{ cartCount }}</span>
           </RouterLink>
+
+          <RouterLink
+            v-if="isLoggedIn"
+            to="/account"
+            class="icon-btn"
+            aria-label="Profile"
+            title="Личный кабинет"
+          >
+            <svg
+              class="icon-svg"
+              viewBox="0 0 24 24"
+              role="img"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5zm0 2c-4.33 0-8 2.17-8 5v1h16v-1c0-2.83-3.67-5-8-5z"
+                fill="currentColor"
+              />
+            </svg>
+          </RouterLink>
         </div>
       </nav>
     </header>
+
+    <section v-if="showPublicNav && belowHeaderBanners.length" class="top-banners">
+      <a
+        v-for="banner in belowHeaderBanners"
+        :key="banner.id"
+        class="banner-link"
+        :href="banner.link_url"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <img class="banner-image" :src="banner.image_url" alt="Store banner" />
+      </a>
+    </section>
+
     <main class="main">
       <RouterView />
     </main>
+
+    <footer v-if="showPublicNav" class="store-footer">
+      <RouterLink to="/" class="footer-brand">{{ shopName }}</RouterLink>
+      <span class="footer-copy">Curated products for everyday needs</span>
+    </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import { useCartStore } from "./stores/cart";
 import { useAuthStore } from "./stores/auth";
+import { useAppearanceStore } from "./stores/appearance";
 
 const cartStore = useCartStore();
 const authStore = useAuthStore();
+const appearanceStore = useAppearanceStore();
 const route = useRoute();
 
+const shopName = "Online Store";
 const cartCount = computed(() => cartStore.cartCount);
+const logoUrl = computed(() => appearanceStore.payload.logo_url || "");
 const isLoggedIn = computed(() => Boolean(authStore.token));
 const isAdmin = computed(
   () =>
@@ -59,62 +110,147 @@ const isAdmin = computed(
 );
 const showPublicNav = computed(() => !route.path.startsWith("/admin"));
 
+const belowHeaderBanners = computed(() => appearanceStore.belowHeaderBanners);
+
+const storefrontStyle = computed(() => {
+  if (!showPublicNav.value) {
+    return {};
+  }
+  return appearanceStore.storefrontCssVars;
+});
+
+const isStorefrontDark = computed(
+  () => showPublicNav.value && appearanceStore.payload.theme_mode === "dark"
+);
+
+const ensureAppearanceLoaded = async () => {
+  if (!showPublicNav.value) {
+    return;
+  }
+  await appearanceStore.loadPublishedAppearance();
+};
+
+watch(
+  () => route.path,
+  async () => {
+    await ensureAppearanceLoaded();
+  }
+);
+
+onMounted(async () => {
+  await ensureAppearanceLoaded();
+});
 </script>
 
 <style scoped>
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
 .navbar {
-  padding: 16px;
-  border-bottom: 1px solid #ddd;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .nav-links {
+  max-width: 1280px;
+  margin: 0 auto;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
-.nav-left {
+.nav-left,
+.nav-right {
+  flex: 0 0 220px;
   display: flex;
-  gap: 16px;
   align-items: center;
-  flex-wrap: wrap;
 }
 
 .nav-right {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.nav-center {
+  flex: 1;
   display: flex;
-  gap: 12px;
+  justify-content: center;
+}
+
+.nav-center-links {
+  display: flex;
+  gap: 10px;
   align-items: center;
-  margin-left: auto;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
-.nav-links a {
-  color: #333;
+.brand-link {
+  display: inline-flex;
+  align-items: center;
   text-decoration: none;
+  color: inherit;
 }
 
-.nav-links a.router-link-active {
-  font-weight: 600;
+.shop-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
-.account-button {
-  padding: 8px 14px;
-  border: 1px solid #333;
-  border-radius: 999px;
-  font-weight: 600;
+.shop-name {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.cart-button {
+.nav-link {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: 10px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.nav-link.router-link-active {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-weight: 700;
+}
+
+.icon-btn {
   position: relative;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
-  border: 1px solid #333;
   border-radius: 999px;
-  min-width: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
-.cart-icon {
+.icon-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.icon-svg {
   width: 20px;
   height: 20px;
   display: block;
@@ -124,16 +260,99 @@ const showPublicNav = computed(() => !route.path.startsWith("/admin"));
   position: absolute;
   top: -6px;
   right: -6px;
-  background: #ff6b00;
-  color: #fff;
+  background: var(--primary);
+  color: var(--primary-contrast);
   border-radius: 999px;
   padding: 2px 6px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
 }
 
+.top-banners {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.banner-link {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.banner-image {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
 .main {
+  flex: 1;
   padding: 16px;
+}
+
+.store-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+
+.footer-brand {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.footer-copy {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1024px) {
+  .nav-left,
+  .nav-right {
+    flex-basis: 170px;
+  }
+}
+
+@media (max-width: 760px) {
+  .nav-links {
+    flex-wrap: wrap;
+  }
+
+  .nav-left {
+    flex: 1 1 auto;
+  }
+
+  .nav-center {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .nav-center-links {
+    justify-content: flex-start;
+  }
+
+  .nav-right {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .store-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

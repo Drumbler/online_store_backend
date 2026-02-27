@@ -1,8 +1,8 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <h1>Verify email</h1>
-    <p v-if="loading" class="status">Verifying...</p>
-    <p v-else-if="message" :class="['status', success ? 'success' : 'error']">
+    <p v-if="loading" class="state-box">Verifying...</p>
+    <p v-else-if="message" :class="['state-box', success ? 'success' : 'error']">
       {{ message }}
     </p>
     <router-link to="/account">Back to account</router-link>
@@ -50,20 +50,4 @@ onMounted(async () => {
   max-width: 520px;
 }
 
-.status {
-  padding: 12px;
-  border-radius: 6px;
-  background: #fff6d8;
-  border: 1px solid #f0dca0;
-}
-
-.status.success {
-  background: #e8f7e8;
-  border-color: #b9e2b9;
-}
-
-.status.error {
-  background: #ffe1e1;
-  border-color: #f2b3b3;
-}
 </style>

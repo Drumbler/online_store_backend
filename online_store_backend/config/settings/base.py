@@ -89,6 +89,8 @@ LOCAL_APPS = [
     "online_store_backend.cart",
     "online_store_backend.orders",
     "online_store_backend.products",
+    "online_store_backend.integrations",
+    "online_store_backend.appearance",
     # Your stuff: custom apps go here
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
@@ -330,3 +332,13 @@ STRAPI_PUBLIC_URL = env(
 STRAPI_TIMEOUT_SECONDS = env.int("STRAPI_TIMEOUT_SECONDS", default=5)
 STRAPI_READ_API_TOKEN = env("STRAPI_READ_API_TOKEN")
 STRAPI_ADMIN_API_TOKEN = env("STRAPI_ADMIN_API_TOKEN")
+YANDEX_NDD_BASE_URL = env(
+    "YANDEX_NDD_BASE_URL",
+    default="https://b2b.taxi.tst.yandex.net",
+)
+YANDEX_NDD_TOKEN = env("YANDEX_NDD_TOKEN", default="")
+YANDEX_NDD_PLATFORM_STATION_ID = env(
+    "YANDEX_NDD_PLATFORM_STATION_ID",
+    default="fbed3aa1-2cc6-4370-ab4d-59c5cc9bb924",
+)
+YANDEX_NDD_TIMEOUT_SECONDS = env.int("YANDEX_NDD_TIMEOUT_SECONDS", default=10)
