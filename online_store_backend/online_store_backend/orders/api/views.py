@@ -1,3 +1,5 @@
+"""API заказов и отзывов: список заказов, lookup, отзывы и рейтинги товаров."""
+
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -41,15 +43,20 @@ ALLOWED_REVIEW_SORTS = {"created_desc", "created_asc", "rating_desc", "rating_as
 
 
 class OrderPagination(PageNumberPagination):
+    """Пагинация списка заказов для личного кабинета."""
+
     page_size = 20
 
 
 class OrderViewSet(ReadOnlyModelViewSet):
+    """Чтение заказов текущего пользователя или всех заказов для админа."""
+
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = OrderPagination
 
     def get_queryset(self):
+        """Ограничить выборку заказами текущего пользователя (или всеми для staff)."""
         user = self.request.user
         if user.is_staff or user.is_superuser:
             return Order.objects.all().prefetch_related("items")
@@ -62,6 +69,7 @@ class OrderViewSet(ReadOnlyModelViewSet):
         permission_classes=[AllowAny],
     )
     def checkout(self, request):
+        """Сохраненный legacy-эндпоинт с подсказкой на новый двухшаговый checkout."""
         return Response(
             {"detail": "Use /api/checkout/preview/ and /api/checkout/confirm/ for checkout."},
             status=status.HTTP_400_BAD_REQUEST,
@@ -75,6 +83,7 @@ class OrderViewSet(ReadOnlyModelViewSet):
         authentication_classes=[],
     )
     def lookup(self, request):
+        """Публичный поиск заказа по номеру и секрету (для гостей)."""
         number = request.query_params.get("number")
         order_secret = request.query_params.get("order_secret")
         if not number:
@@ -96,6 +105,7 @@ class OrderViewSet(ReadOnlyModelViewSet):
 
 
 def _positive_int(value, default):
+    """Привести значение к положительному int или вернуть значение по умолчанию."""
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -106,6 +116,7 @@ def _positive_int(value, default):
 
 
 def _parse_product_ids_csv(value):
+    """Разобрать CSV со списком product_id, удаляя пустые значения и дубликаты."""
     if value in (None, ""):
         return []
     product_ids = []
@@ -120,6 +131,7 @@ def _parse_product_ids_csv(value):
 
 
 def _review_summaries(product_ids):
+    """Построить сводку рейтингов и количества отзывов по списку товаров."""
     summaries = {
         product_id: {"avg_rating": None, "reviews_count": 0}
         for product_id in product_ids
@@ -142,9 +154,12 @@ def _review_summaries(product_ids):
 
 
 class ProductReviewListView(APIView):
+    """Публичный список отзывов по товару с фильтрацией и пагинацией."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, product_id):
+        """Вернуть отзывы товара с сортировкой и опциональным фильтром по рейтингу."""
         sort = request.query_params.get("sort", "created_desc")
         if sort not in ALLOWED_REVIEW_SORTS:
             return Response({"detail": "Invalid sort value."}, status=status.HTTP_400_BAD_REQUEST)
@@ -206,9 +221,12 @@ class ProductReviewListView(APIView):
 
 
 class ReviewSummaryView(APIView):
+    """Публичная сводка отзывов по группе товаров."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Вернуть агрегированную статистику рейтингов по `product_ids`."""
         product_ids = _parse_product_ids_csv(request.query_params.get("product_ids"))
         if not product_ids:
             return Response(
@@ -222,17 +240,23 @@ class ReviewSummaryView(APIView):
 
 
 class ProductRatingSummaryView(APIView):
+    """Публичная сводка рейтинга по одному товару."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, product_id):
+        """Вернуть средний рейтинг и количество отзывов для конкретного товара."""
         summary = _review_summaries([product_id]).get(product_id, {"avg_rating": None, "reviews_count": 0})
         return Response(summary, status=status.HTTP_200_OK)
 
 
 class EligibleReviewProductsView(APIView):
+    """Список купленных товаров, по которым пользователь может оставить отзыв."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Вернуть кандидатов на отзыв для auth-пользователя или гостя по секрету заказа."""
         if request.user.is_authenticated:
             items_queryset = (
                 OrderItem.objects.filter(order__user=request.user, review_left_at__isnull=True)
@@ -284,9 +308,12 @@ class EligibleReviewProductsView(APIView):
 
 
 class ReviewCreateView(APIView):
+    """Создание отзыва по одноразовому review-токену позиции заказа."""
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Сохранить отзыв и пометить позицию заказа как уже оцененную."""
         serializer = ReviewCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

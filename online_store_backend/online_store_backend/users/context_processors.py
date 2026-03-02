@@ -1,3 +1,5 @@
+"""Context processor'ы приложения пользователей."""
+
 from django.conf import settings
 
 

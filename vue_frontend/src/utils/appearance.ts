@@ -1,3 +1,4 @@
+/** Утилиты работы с токенами темы и пресетами отображения блоков. */
 import type {
   AppearanceBlockType,
   AppearancePresetConfig,
@@ -53,12 +54,14 @@ const DEFAULT_PHOTO_MODE: Record<AppearancePresetType, AppearancePresetConfig["p
 };
 
 export const spacingLevelToPixels = (level: number) => {
+  /** Маппинг условного уровня отступов в пиксели. */
   const map = [8, 12, 16, 20, 24, 28];
   const normalized = Number.isFinite(level) ? Math.min(5, Math.max(0, Math.round(level))) : 2;
   return map[normalized] || 16;
 };
 
 const normalizeHex = (value: string) => {
+  /** Нормализует цвет к `#rrggbb` или возвращает дефолтный primary. */
   const candidate = String(value || "").trim();
   if (/^#[0-9a-fA-F]{6}$/.test(candidate)) {
     return candidate.toLowerCase();
@@ -67,6 +70,7 @@ const normalizeHex = (value: string) => {
 };
 
 const hexToRgb = (hex: string) => {
+  /** Преобразует hex-цвет в RGB-каналы. */
   const base = normalizeHex(hex).slice(1);
   return {
     r: parseInt(base.slice(0, 2), 16),
@@ -76,6 +80,7 @@ const hexToRgb = (hex: string) => {
 };
 
 const toLinearChannel = (channel: number) => {
+  /** Перевод sRGB-канала в линейное пространство для расчета контраста. */
   const value = channel / 255;
   if (value <= 0.03928) {
     return value / 12.92;
@@ -84,6 +89,7 @@ const toLinearChannel = (channel: number) => {
 };
 
 const relativeLuminance = (hex: string) => {
+  /** Относительная яркость цвета по WCAG-формуле. */
   const rgb = hexToRgb(hex);
   return (
     0.2126 * toLinearChannel(rgb.r) + 0.7152 * toLinearChannel(rgb.g) + 0.0722 * toLinearChannel(rgb.b)
@@ -91,6 +97,7 @@ const relativeLuminance = (hex: string) => {
 };
 
 const contrastRatio = (foregroundHex: string, backgroundHex: string) => {
+  /** Контраст двух цветов по формуле WCAG. */
   const l1 = relativeLuminance(foregroundHex);
   const l2 = relativeLuminance(backgroundHex);
   const lighter = Math.max(l1, l2);
@@ -99,6 +106,7 @@ const contrastRatio = (foregroundHex: string, backgroundHex: string) => {
 };
 
 const mixHexColors = (firstHex: string, secondHex: string, firstWeight = 0.5) => {
+  /** Линейно смешивает два hex-цвета с заданным весом первого цвета. */
   const clampedWeight = Math.max(0, Math.min(1, firstWeight));
   const rgbA = hexToRgb(firstHex);
   const rgbB = hexToRgb(secondHex);
@@ -110,12 +118,14 @@ const mixHexColors = (firstHex: string, secondHex: string, firstWeight = 0.5) =>
 };
 
 export const pickReadableTextColor = (backgroundHex: string) => {
+  /** Выбирает белый/темный текст, который лучше читается на фоне. */
   const white = "#ffffff";
   const dark = "#111111";
   return contrastRatio(white, backgroundHex) >= contrastRatio(dark, backgroundHex) ? white : dark;
 };
 
 export const buildThemeTokens = (themeMode: "light" | "dark", primaryColor: string) => {
+  /** Собирает полный набор CSS-токенов темы для storefront. */
   const primary = normalizeHex(primaryColor);
   const palette =
     themeMode === "dark"
@@ -167,6 +177,7 @@ export const normalizePresetConfig = (
   config: AppearancePresetConfig | null | undefined,
   presetType: AppearancePresetType
 ): AppearancePresetConfig => {
+  /** Нормализует пресет и гарантирует валидный порядок/набор блоков. */
   const fallback = defaultPresetConfig(presetType);
   if (!config) {
     return fallback;
@@ -208,4 +219,5 @@ export const normalizePresetConfig = (
 };
 
 export const visibleBlocks = (config: AppearancePresetConfig) =>
+  /** Возвращает только видимые блоки, отсортированные по порядку. */
   [...config.blocks].filter((block) => block.visible).sort((a, b) => a.order - b.order);

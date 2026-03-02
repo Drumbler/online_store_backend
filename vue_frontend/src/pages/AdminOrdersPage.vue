@@ -1,10 +1,10 @@
 <template>
-  <section class="page">
+  <section class="page bg-app text-app">
     <header class="heading">
-      <h1>Orders</h1>
-      <p>Order management is coming soon.</p>
+      <h1>Заказы</h1>
+      <p>Раздел управления заказами в разработке.</p>
     </header>
-    <div class="placeholder">Placeholder for admin orders dashboard.</div>
+    <div class="placeholder surface-card">Здесь будет панель управления заказами.</div>
   </section>
 </template>
 
@@ -16,12 +16,10 @@
 }
 
 .heading p {
-  color: #6f5f4c;
+  color: var(--muted);
 }
 
 .placeholder {
   padding: 16px;
-  border: 1px dashed #c6b59a;
-  background: #fffdf8;
 }
 </style>

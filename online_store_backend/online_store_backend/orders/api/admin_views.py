@@ -1,3 +1,5 @@
+"""Админские API для модерации отзывов и формирования отчетов по продажам."""
+
 import logging
 from collections import defaultdict
 from datetime import timedelta
@@ -44,10 +46,14 @@ ALLOWED_REVIEW_SORTS = {"created_desc", "created_asc", "rating_desc", "rating_as
 
 
 class ReviewModerationUpdateSerializer(serializers.Serializer):
+    """Payload для изменения публикации одного отзыва."""
+
     is_published = serializers.BooleanField()
 
 
 class ReviewModerationBulkSerializer(serializers.Serializer):
+    """Payload для массовой модерации отзывов."""
+
     ids = serializers.ListField(
         child=serializers.IntegerField(min_value=1),
         allow_empty=False,
@@ -56,6 +62,7 @@ class ReviewModerationBulkSerializer(serializers.Serializer):
 
 
 def _positive_int(value, default):
+    """Преобразует значение в положительное целое или возвращает default."""
     try:
         parsed = int(value)
     except (TypeError, ValueError):
@@ -66,6 +73,7 @@ def _positive_int(value, default):
 
 
 def _normalize_list_params(query_params):
+    """Нормализует параметры пагинации списка отзывов."""
     page = _positive_int(query_params.get("page"), 1)
     page_size = _positive_int(query_params.get("page_size"), DEFAULT_REVIEWS_PAGE_SIZE)
     if page_size > MAX_REVIEWS_PAGE_SIZE:
@@ -74,6 +82,7 @@ def _normalize_list_params(query_params):
 
 
 def _base_queryset():
+    """Строит базовый queryset отзывов с аннотациями snapshot-данных товара."""
     order_item_for_review = OrderItem.objects.filter(
         order_id=OuterRef("order_id"),
         product_id=OuterRef("product_id"),
@@ -89,6 +98,7 @@ def _base_queryset():
 
 
 def _apply_filters(queryset, query_params):
+    """Применяет фильтры рейтинга, публикации и текстового поиска."""
     rating_gte = query_params.get("rating_gte")
     if rating_gte not in (None, ""):
         try:
@@ -121,6 +131,7 @@ def _apply_filters(queryset, query_params):
 
 
 def _apply_sort(queryset, sort):
+    """Применяет сортировку по дате или рейтингу для списка отзывов."""
     if sort not in ALLOWED_REVIEW_SORTS:
         raise serializers.ValidationError({"sort": "Invalid sort value."})
     if sort == "created_desc":
@@ -133,6 +144,7 @@ def _apply_sort(queryset, sort):
 
 
 def _load_products(product_ids):
+    """Загружает из каталога метаданные товаров для списка отзывов."""
     products = {}
     catalog_unavailable = False
     for product_id in product_ids:
@@ -153,6 +165,7 @@ def _load_products(product_ids):
 
 
 def _serialize_review(review, products):
+    """Собирает JSON-представление отзыва для ответа admin API."""
     product = products.get(review.product_id) or {}
     product_title = product.get("title") or None
     product_image_url = product.get("image_url") or None
@@ -174,9 +187,12 @@ def _serialize_review(review, products):
 
 
 class AdminReviewListView(APIView):
+    """Возвращает список отзывов для модерации в админке."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Отдает пагинированный список отзывов с фильтрами."""
         try:
             queryset = _apply_filters(_base_queryset(), request.query_params)
             queryset = _apply_sort(queryset, request.query_params.get("sort", "created_desc"))
@@ -204,9 +220,12 @@ class AdminReviewListView(APIView):
 
 
 class AdminReviewModerationView(APIView):
+    """Изменяет флаг публикации одного отзыва."""
+
     permission_classes = [IsAdminUser]
 
     def patch(self, request, review_id):
+        """Применяет модерацию к выбранному отзыву."""
         serializer = ReviewModerationUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_value = serializer.validated_data["is_published"]
@@ -227,9 +246,12 @@ class AdminReviewModerationView(APIView):
 
 
 class AdminReviewModerationBulkView(APIView):
+    """Массово изменяет флаг публикации отзывов."""
+
     permission_classes = [IsAdminUser]
 
     def post(self, request):
+        """Обновляет список отзывов по переданным id."""
         serializer = ReviewModerationBulkSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         ids = serializer.validated_data["ids"]
@@ -244,19 +266,25 @@ class AdminReviewModerationBulkView(APIView):
 
 
 class MonthlyReportQuerySerializer(serializers.Serializer):
+    """Параметры периода для месячного отчета."""
+
     year = serializers.IntegerField(required=False, min_value=2000, max_value=2100)
     month = serializers.IntegerField(required=False, min_value=1, max_value=12)
 
 
 class YearlyReportQuerySerializer(serializers.Serializer):
+    """Параметры периода для годового отчета."""
+
     year = serializers.IntegerField(required=False, min_value=2000, max_value=2100)
 
 
 def _current_local_time():
+    """Возвращает текущее локальное время с учетом таймзоны проекта."""
     return timezone.localtime(timezone.now())
 
 
 def _month_period(year: int, month: int, now_local):
+    """Вычисляет границы месяца для отчета."""
     period_from = now_local.replace(year=year, month=month, day=1, hour=0, minute=0, second=0, microsecond=0)
     if year == now_local.year and month == now_local.month:
         return period_from, now_local
@@ -276,12 +304,14 @@ def _month_period(year: int, month: int, now_local):
 
 
 def _year_period(year: int, now_local):
+    """Вычисляет границы года для отчета."""
     period_from = now_local.replace(year=year, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     period_to = now_local.replace(year=year, month=12, day=31, hour=23, minute=59, second=59, microsecond=999999)
     return period_from, period_to
 
 
 def _resolve_month_period(query_params):
+    """Валидирует query-параметры и возвращает границы месяца."""
     now_local = _current_local_time()
     serializer = MonthlyReportQuerySerializer(data=query_params)
     serializer.is_valid(raise_exception=True)
@@ -292,6 +322,7 @@ def _resolve_month_period(query_params):
 
 
 def _resolve_year_period(query_params):
+    """Валидирует query-параметры и возвращает границы года."""
     now_local = _current_local_time()
     serializer = YearlyReportQuerySerializer(data=query_params)
     serializer.is_valid(raise_exception=True)
@@ -301,11 +332,13 @@ def _resolve_year_period(query_params):
 
 
 def _format_revenue(value):
+    """Нормализует выручку к строке с двумя знаками после запятой."""
     decimal_value = value if isinstance(value, Decimal) else Decimal(str(value or "0.00"))
     return format(decimal_value.quantize(Decimal("0.01")), "f")
 
 
 def _build_report_payload(period_from, period_to):
+    """Строит сводный отчет по просмотрам, продажам и выручке товаров."""
     views_rows = (
         ProductViewEvent.objects.filter(viewed_at__gte=period_from, viewed_at__lte=period_to)
         .values("product_id")
@@ -410,6 +443,7 @@ def _build_report_payload(period_from, period_to):
 
 
 def _available_month_periods():
+    """Возвращает доступные месяцы/годы, где есть просмотры или продажи."""
     views_rows = ProductViewEvent.objects.annotate(
         year=ExtractYear("viewed_at"),
         month=ExtractMonth("viewed_at"),
@@ -434,6 +468,7 @@ def _available_month_periods():
 
 
 def _xlsx_response(payload, filename: str):
+    """Формирует и возвращает XLSX-файл с данными отчета."""
     try:
         from openpyxl import Workbook
     except ImportError:
@@ -469,17 +504,23 @@ def _xlsx_response(payload, filename: str):
 
 
 class AdminReportPeriodsView(APIView):
+    """Возвращает список доступных периодов для отчетов."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Отдает годы и месяцы, где есть данные для аналитики."""
         years, months_by_year = _available_month_periods()
         return Response({"years": years, "months_by_year": months_by_year}, status=status.HTTP_200_OK)
 
 
 class AdminMonthlyReportView(APIView):
+    """Возвращает JSON-отчет за месяц."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Строит месячный отчет по выбранному периоду."""
         try:
             _, _, period_from, period_to = _resolve_month_period(request.query_params)
         except serializers.ValidationError as exc:
@@ -489,9 +530,12 @@ class AdminMonthlyReportView(APIView):
 
 
 class AdminMonthlyReportXlsxView(APIView):
+    """Возвращает XLSX-отчет за месяц."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Генерирует месячный отчет в формате Excel."""
         try:
             year, month, period_from, period_to = _resolve_month_period(request.query_params)
         except serializers.ValidationError as exc:
@@ -501,9 +545,12 @@ class AdminMonthlyReportXlsxView(APIView):
 
 
 class AdminYearlyReportView(APIView):
+    """Возвращает JSON-отчет за год."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Строит годовой отчет по выбранному периоду."""
         try:
             _, period_from, period_to = _resolve_year_period(request.query_params)
         except serializers.ValidationError as exc:
@@ -513,9 +560,12 @@ class AdminYearlyReportView(APIView):
 
 
 class AdminYearlyReportXlsxView(APIView):
+    """Возвращает XLSX-отчет за год."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Генерирует годовой отчет в формате Excel."""
         try:
             year, period_from, period_to = _resolve_year_period(request.query_params)
         except serializers.ValidationError as exc:

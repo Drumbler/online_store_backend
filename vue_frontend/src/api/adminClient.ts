@@ -1,4 +1,6 @@
+/** Axios-клиент для админских API-эндпоинтов. */
 import axios from "axios";
+import { installJwtInterceptors } from "./jwtAuth";
 
 export const adminApiClient = axios.create({
   baseURL: "/api",
@@ -8,11 +10,4 @@ export const adminApiClient = axios.create({
   }
 });
 
-adminApiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Token ${token}`;
-  }
-  return config;
-});
+installJwtInterceptors(adminApiClient);

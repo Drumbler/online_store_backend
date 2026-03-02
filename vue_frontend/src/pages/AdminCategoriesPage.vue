@@ -2,19 +2,19 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Categories</h1>
-        <p>Manage categories with draft changes.</p>
+        <h1>Категории</h1>
+        <p>Управление категориями с черновыми изменениями.</p>
       </div>
       <div class="toolbar">
-        <button type="button" @click="openCreateModal" :disabled="isBusy">Add</button>
-        <button type="button" @click="openBulkDelete" :disabled="isBusy">Delete</button>
+        <button type="button" @click="openCreateModal" :disabled="isBusy">Добавить</button>
+        <button type="button" @click="openBulkDelete" :disabled="isBusy">Удалить</button>
       </div>
     </header>
 
     <p v-if="toast" class="toast">{{ toast }}</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-if="loading" class="loading">Loading categories...</div>
+    <div v-if="loading" class="loading">Загрузка категорий...</div>
 
     <div v-else class="table-wrap">
       <table class="table">
@@ -28,13 +28,13 @@
                 @change="toggleSelectAll"
               />
             </th>
-            <th>Title</th>
-            <th>Slug</th>
-            <th>Product count</th>
-            <th>Derived discount</th>
-            <th>Category discount (draft)</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>Название</th>
+            <th>Слаг</th>
+            <th>Количество товаров</th>
+            <th>Расчетная скидка</th>
+            <th>Скидка категории (черновик)</th>
+            <th>Статус</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -77,7 +77,7 @@
                   type="button"
                   class="icon"
                   :disabled="isRowLocked(row)"
-                  title="Reset slug from title"
+                  title="Обновить slug из названия"
                   @click="resetSlug(row)"
                 >
                   ↻
@@ -98,7 +98,7 @@
                   :disabled="isRowLocked(row)"
                   @input="onDiscountInput(row)"
                 />
-                <span class="hint" title="Applied on Apply changes">Applied on Apply changes</span>
+                <span class="hint" title="Применяется после кнопки «Применить изменения»">Применяется после кнопки «Применить изменения»</span>
               </div>
             </td>
             <td class="status-col">
@@ -109,7 +109,7 @@
                 type="button"
                 class="icon danger"
                 :disabled="isBusy"
-                title="Mark category for deletion"
+                title="Пометить категорию на удаление"
                 @click="openDeleteRowConfirm(row)"
               >
                 🗑
@@ -117,7 +117,7 @@
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td colspan="8" class="empty">No categories found.</td>
+            <td colspan="8" class="empty">Категории не найдены.</td>
           </tr>
         </tbody>
       </table>
@@ -125,23 +125,23 @@
 
     <div class="action-bar">
       <button type="button" class="secondary" :disabled="isBusy" @click="cancelChanges">
-        Cancel changes
+        Отменить изменения
       </button>
       <button type="button" :disabled="isBusy || !hasDraftChanges" @click="applyChanges">
-        Apply changes
+        Применить изменения
       </button>
     </div>
 
     <div v-if="showCreateModal" class="modal">
       <div class="modal-card">
-        <h2>Create category</h2>
+        <h2>Создать категорию</h2>
         <div class="modal-body">
           <label>
-            <span>Title *</span>
+            <span>Название *</span>
             <input v-model="createForm.title" type="text" @input="syncCreateSlug" />
           </label>
           <label>
-            <span>Slug</span>
+            <span>Слаг</span>
             <div class="slug-cell">
               <input
                 v-model="createForm.slug"
@@ -149,7 +149,7 @@
                 :class="{ invalid: Boolean(createForm.slugError) }"
                 @input="onCreateSlugInput"
               />
-              <button type="button" class="icon" title="Reset slug from title" @click="resetCreateSlug">
+              <button type="button" class="icon" title="Обновить slug из названия" @click="resetCreateSlug">
                 ↻
               </button>
             </div>
@@ -157,8 +157,8 @@
           </label>
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeCreateModal">Cancel</button>
-          <button type="button" @click="confirmCreate">Add to draft</button>
+          <button type="button" class="secondary" @click="closeCreateModal">Отмена</button>
+          <button type="button" @click="confirmCreate">Добавить в черновик</button>
         </div>
       </div>
     </div>
@@ -168,13 +168,13 @@
         <h2>{{ confirmDialog.title }}</h2>
         <p>{{ confirmDialog.message }}</p>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeConfirm">Cancel</button>
+          <button type="button" class="secondary" @click="closeConfirm">Отмена</button>
           <button
             type="button"
             :class="confirmDialog.danger ? 'danger' : ''"
             @click="runConfirmAction"
           >
-            Confirm
+            Подтвердить
           </button>
         </div>
       </div>
@@ -183,6 +183,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 import { adminApiClient } from "../api/adminClient";
 
@@ -297,21 +298,21 @@ const slugFromTitle = (value: string) =>
     .replace(/^-|-$/g, "");
 
 const validateSlug = (slug: string) => {
-  if (!slug) return "Slug is required.";
-  if (!/^[a-z0-9-]+$/.test(slug)) return "Slug can contain only latin letters, digits and '-'.";
+  if (!slug) return "Слаг обязателен.";
+  if (!/^[a-z0-9-]+$/.test(slug)) return "Слаг может содержать только латинские буквы, цифры и '-'.";
   return null;
 };
 
 const derivedDiscountLabel = (row: CategoryRow) => {
-  if (row.derived_discount_is_mixed) return "mixed";
+  if (row.derived_discount_is_mixed) return "смешанная";
   if (row.derived_discount_percent === null || row.derived_discount_percent === undefined) return "—";
   return `${row.derived_discount_percent}%`;
 };
 
 const statusLabel = (row: CategoryRow) => {
-  if (row.status === "new") return "new";
-  if (row.status === "edited") return "edited";
-  if (row.status === "deleted") return "to delete";
+  if (row.status === "new") return "новая";
+  if (row.status === "edited") return "изменена";
+  if (row.status === "deleted") return "к удалению";
   return "";
 };
 
@@ -376,7 +377,7 @@ const loadCategories = async () => {
     rows.value = (response.data.results || []).map(mapRowFromApi);
     selectedIds.value.clear();
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load categories.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить категории.";
   } finally {
     loading.value = false;
   }
@@ -455,7 +456,7 @@ const resetCreateSlug = () => {
 const confirmCreate = () => {
   const title = createForm.value.title.trim();
   if (!title) {
-    showToast("Title is required.");
+    showToast("Название обязательно.");
     return;
   }
   const slug = slugFromTitle(createForm.value.slug || title);
@@ -484,12 +485,12 @@ const openBulkDelete = () => {
     (row) => selectedIds.value.has(row.id) && row.status !== "deleted"
   );
   if (targets.length === 0) {
-    showToast("No categories selected.");
+    showToast("Категории не выбраны.");
     return;
   }
   confirmDialog.value = {
-    title: "Delete categories",
-    message: `Delete ${targets.length} categories? Cannot be undone.`,
+    title: "Удаление категорий",
+    message: `Удалить ${targets.length} категорий? Это действие необратимо.`,
     danger: true,
     action: () => {
       targets.forEach((row) => {
@@ -502,8 +503,8 @@ const openBulkDelete = () => {
 
 const openDeleteRowConfirm = (row: CategoryRow) => {
   confirmDialog.value = {
-    title: "Delete category",
-    message: `Delete category ${row.title}? This cannot be undone.`,
+    title: "Удаление категории",
+    message: `Удалить категорию «${row.title}»? Это действие необратимо.`,
     danger: true,
     action: () => {
       row.status = "deleted";
@@ -532,7 +533,7 @@ const getSlugErrorMessage = (err: any) => {
   const raw = err?.response?.data?.slug;
   if (Array.isArray(raw) && raw.length > 0) return String(raw[0]);
   if (typeof raw === "string" && raw.trim()) return raw.trim();
-  return "This slug is already in use.";
+  return "Этот slug уже используется.";
 };
 
 const validateRowSlugs = (targets: CategoryRow[]) => {
@@ -564,8 +565,8 @@ const applyChanges = async () => {
     );
 
     if (!validateRowSlugs([...created, ...updated])) {
-      showToast("Please fix slug errors before applying changes.");
-      error.value = "Validation failed.";
+      showToast("Исправьте ошибки slug перед применением изменений.");
+      error.value = "Ошибка валидации.";
       return;
     }
 
@@ -582,8 +583,8 @@ const applyChanges = async () => {
       } catch (err: any) {
         if (isSlugConflictResponse(err)) {
           row.slugError = getSlugErrorMessage(err);
-          showToast("Slug already in use");
-          error.value = "Slug already in use.";
+          showToast("Слаг уже используется");
+          error.value = "Слаг уже используется.";
           return;
         }
         throw err;
@@ -599,8 +600,8 @@ const applyChanges = async () => {
       } catch (err: any) {
         if (isSlugConflictResponse(err)) {
           row.slugError = getSlugErrorMessage(err);
-          showToast("Slug already in use");
-          error.value = "Slug already in use.";
+          showToast("Слаг уже используется");
+          error.value = "Слаг уже используется.";
           return;
         }
         throw err;
@@ -625,10 +626,10 @@ const applyChanges = async () => {
       }
     }
 
-    showToast("Changes applied.");
+    showToast("Изменения применены.");
     await loadCategories();
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to apply changes. Draft kept for retry.";
+    error.value = err?.response?.data?.detail || "Не удалось применить изменения. Черновик сохранен для повторной попытки.";
   } finally {
     committing.value = false;
   }
@@ -720,7 +721,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.table input,
+.table input:not([type="checkbox"]):not([type="radio"]),
 .table select {
   width: 100%;
   padding: 6px;

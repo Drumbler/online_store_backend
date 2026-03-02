@@ -1,3 +1,5 @@
+"""API корзины: просмотр корзины и CRUD операций над позициями."""
+
 import logging
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_cart_payload(cart):
+    """Собрать агрегированный payload корзины с актуальными ценами из каталога."""
     items = []
     subtotal_original = Decimal("0.00")
     subtotal_final = Decimal("0.00")
@@ -83,9 +86,12 @@ def _build_cart_payload(cart):
 
 
 class CartView(APIView):
+    """Получение текущей активной корзины (для гостя или пользователя)."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Вернуть состояние корзины с суммами и скидками."""
         cart = get_or_create_cart(request)
         try:
             payload = _build_cart_payload(cart)
@@ -102,10 +108,13 @@ class CartView(APIView):
 
 
 class CartItemViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, GenericViewSet):
+    """Управление позициями текущей активной корзины."""
+
     serializer_class = CartItemSerializer
     permission_classes = [AllowAny]
 
     def get_serializer_class(self):
+        """Выбрать сериализатор в зависимости от действия (`create`/`update`)."""
         if self.action == "create":
             return CartItemCreateSerializer
         if self.action in {"update", "partial_update"}:
@@ -113,6 +122,7 @@ class CartItemViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.D
         return CartItemSerializer
 
     def get_queryset(self):
+        """Ограничить queryset позициями текущей активной корзины."""
         cart = get_or_create_cart(self.request)
         return CartItem.objects.filter(
             cart=cart,
@@ -120,6 +130,7 @@ class CartItemViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.D
         )
 
     def create(self, request, *args, **kwargs):
+        """Добавить товар в корзину или увеличить количество существующей позиции."""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -187,6 +198,7 @@ class CartItemViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.D
         )
 
     def update(self, request, *args, **kwargs):
+        """Обновить количество существующей позиции корзины."""
         item = self.get_object()
         serializer = self.get_serializer(item, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -195,4 +207,5 @@ class CartItemViewSet(mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.D
         return Response(CartItemSerializer(item).data, status=status.HTTP_200_OK)
 
     def partial_update(self, request, *args, **kwargs):
+        """Поддержка PATCH через переиспользование логики `update`."""
         return self.update(request, *args, **kwargs)

@@ -2,7 +2,7 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Reports</h1>
+        <h1>Отчеты</h1>
         <p>Отчёты по месяцам и за календарный год.</p>
       </div>
       <div class="mode-actions">
@@ -57,7 +57,7 @@
 
     <p v-else class="empty-periods">Нет записанных периодов в БД.</p>
 
-    <div v-if="loading" class="loading">Loading report...</div>
+    <div v-if="loading" class="loading">Загрузка отчета...</div>
 
     <template v-else>
       <p class="period">Период: {{ periodLabel }}</p>
@@ -96,6 +96,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref, watch } from "vue";
 
 import { adminApiClient } from "../api/adminClient";
@@ -236,7 +237,7 @@ const loadPeriods = async () => {
     const months = monthsByYear.value[String(selectedYear.value)] || [];
     selectedMonth.value = months.length > 0 ? months[months.length - 1] : null;
   } catch (err: any) {
-    error.value = await extractApiError(err, "Failed to load available periods.");
+    error.value = await extractApiError(err, "Не удалось загрузить доступные периоды.");
     years.value = [];
     monthsByYear.value = {};
     selectedYear.value = null;
@@ -286,7 +287,7 @@ const loadReport = async () => {
     totals.value = payload.totals || { views: 0, units_sold: 0, revenue: "0.00" };
     rows.value = payload.results || [];
   } catch (err: any) {
-    error.value = await extractApiError(err, "Failed to load report.");
+    error.value = await extractApiError(err, "Не удалось загрузить отчет.");
     resetReportData();
   } finally {
     loading.value = false;
@@ -295,7 +296,7 @@ const loadReport = async () => {
 
 const parseFilename = (contentDisposition?: string) => {
   if (!contentDisposition) {
-    return "report.xlsx";
+    return "otchet.xlsx";
   }
   const utfMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
   if (utfMatch?.[1]) {
@@ -305,7 +306,7 @@ const parseFilename = (contentDisposition?: string) => {
   if (simpleMatch?.[1]) {
     return simpleMatch[1];
   }
-  return "report.xlsx";
+  return "otchet.xlsx";
 };
 
 const downloadExcel = async () => {
@@ -333,7 +334,7 @@ const downloadExcel = async () => {
     link.remove();
     window.URL.revokeObjectURL(url);
   } catch (err: any) {
-    error.value = await extractApiError(err, "Failed to download Excel file.");
+    error.value = await extractApiError(err, "Не удалось скачать Excel-файл.");
   } finally {
     downloading.value = false;
   }

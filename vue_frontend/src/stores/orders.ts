@@ -1,3 +1,4 @@
+/** Store оформления заказа (legacy checkout endpoint). */
 import { defineStore } from "pinia";
 import { ref } from "vue";
 
@@ -15,6 +16,7 @@ export const useOrderStore = defineStore("orders", () => {
   const lastOrder = ref<any>(null);
 
   const submitCheckout = async (payload: CheckoutPayload) => {
+    /** Отправляет checkout и сохраняет последний успешный заказ. */
     loading.value = true;
     error.value = null;
     try {

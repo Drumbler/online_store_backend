@@ -1,3 +1,4 @@
+/** Pinia-store публичного каталога: категории, товары, пагинация и ошибки. */
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { RouteLocationNormalizedLoaded } from "vue-router";
@@ -21,6 +22,7 @@ export type Product = {
   currency?: string;
   image_url?: string | null;
   thumbnail_url?: string | null;
+  gallery_urls?: string[] | null;
   category?: Category | null;
 };
 
@@ -41,6 +43,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   const error = ref<string | null>(null);
 
   const fetchCategories = async () => {
+    /** Загружает список категорий каталога. */
     loading.value = true;
     error.value = null;
     try {
@@ -54,6 +57,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   };
 
   const fetchProductsFromRouteQuery = async (query: RouteLocationNormalizedLoaded["query"]) => {
+    /** Загружает товары, интерпретируя query-параметры текущего маршрута. */
     loading.value = true;
     error.value = null;
     try {
@@ -91,6 +95,7 @@ export const useCatalogStore = defineStore("catalog", () => {
   };
 
   const fetchProductBySlug = async (slug: string) => {
+    /** Загружает один товар по slug для страницы товара. */
     loading.value = true;
     error.value = null;
     try {

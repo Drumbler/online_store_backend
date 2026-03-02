@@ -2,33 +2,33 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Appearance</h1>
-        <p>Draft editor with live preview. Publish applies globally.</p>
+        <h1>Оформление</h1>
+        <p>Редактор черновика с живым превью. Публикация применяется глобально.</p>
       </div>
       <div class="top-actions">
-        <button :disabled="busy || !draft" @click="handlePublish">Apply</button>
-        <button class="secondary" :disabled="busy || !draft" @click="handleReset">Reset draft</button>
+        <button :disabled="busy || !draft" @click="handlePublish">Применить</button>
+        <button class="secondary" :disabled="busy || !draft" @click="handleReset">Сбросить черновик</button>
       </div>
     </header>
 
     <p v-if="toast" class="toast" :class="{ error: toastType === 'error' }">{{ toast }}</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-if="loading && !draft" class="loading">Loading appearance settings...</div>
+    <div v-if="loading && !draft" class="loading">Загрузка настроек оформления...</div>
 
     <div v-else-if="draft" class="layout">
       <div class="editor">
         <section class="card">
-          <h2>Theme</h2>
+          <h2>Тема</h2>
           <label>
-            <span>Mode</span>
+            <span>Режим</span>
             <select v-model="draft.theme_mode">
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
+              <option value="light">Светлая</option>
+              <option value="dark">Темная</option>
             </select>
           </label>
           <label>
-            <span>Primary color</span>
+            <span>Основной цвет</span>
             <div class="color-row">
               <input v-model="draft.primary_color" type="color" />
               <input v-model="draft.primary_color" type="text" placeholder="#RRGGBB" />
@@ -36,10 +36,10 @@
           </label>
 
           <div class="logo-editor">
-            <span>Shop logo</span>
+            <span>Логотип магазина</span>
             <div class="logo-preview-wrap">
-              <img v-if="logoPreviewSrc" :src="logoPreviewSrc" alt="Logo preview" class="logo-preview" />
-              <div v-else class="logo-placeholder">No logo</div>
+              <img v-if="logoPreviewSrc" :src="logoPreviewSrc" alt="Предпросмотр логотипа" class="logo-preview" />
+              <div v-else class="logo-placeholder">Логотип не загружен</div>
             </div>
             <input
               type="file"
@@ -47,9 +47,9 @@
               :disabled="busy"
               @change="onLogoFileChange"
             />
-            <small class="hint">PNG/JPG/WebP, up to 512KB, strict square format.</small>
-            <small v-if="selectedLogoName" class="hint">Selected: {{ selectedLogoName }}</small>
-            <small v-if="clearLogo" class="hint danger-text">Logo will be removed on save.</small>
+            <small class="hint">PNG/JPG/WebP, до 512KB, строго квадратный формат.</small>
+            <small v-if="selectedLogoName" class="hint">Выбрано: {{ selectedLogoName }}</small>
+            <small v-if="clearLogo" class="hint danger-text">Логотип будет удален после сохранения.</small>
             <button
               v-if="logoPreviewSrc || selectedLogoName"
               type="button"
@@ -57,34 +57,34 @@
               :disabled="busy"
               @click="markLogoForRemoval"
             >
-              Remove logo
+              Удалить логотип
             </button>
           </div>
         </section>
 
         <section class="card">
-          <h2>Grid</h2>
+          <h2>Сетка</h2>
           <label>
-            <span>Columns</span>
+            <span>Колонки</span>
             <select v-model.number="draft.grid_columns">
               <option v-for="n in [2, 3, 4, 5, 6]" :key="`cols-${n}`" :value="n">{{ n }}</option>
             </select>
           </label>
           <label>
-            <span>Card height: {{ draft.card_height }}px</span>
+            <span>Высота карточки: {{ draft.card_height }}px</span>
             <input v-model.number="draft.card_height" type="range" min="240" max="520" step="10" />
           </label>
           <label>
-            <span>Spacing level: {{ draft.spacing_level }}</span>
+            <span>Уровень отступов: {{ draft.spacing_level }}</span>
             <input v-model.number="draft.spacing_level" type="range" min="0" max="5" step="1" />
           </label>
-          <button :disabled="busy" @click="saveDraftSettings">Save draft settings</button>
+          <button :disabled="busy" @click="saveDraftSettings">Сохранить настройки черновика</button>
         </section>
 
         <section class="card">
           <div class="section-head">
-            <h2>Presets</h2>
-            <button :disabled="busy" @click="openCreatePresetModal">Create</button>
+            <h2>Пресеты</h2>
+            <button :disabled="busy" @click="openCreatePresetModal">Создать</button>
           </div>
 
           <div class="tabs">
@@ -108,43 +108,43 @@
             >
               <div class="preset-main">
                 <strong>{{ preset.name }}</strong>
-                <span v-if="preset.id === activePresetIdForTab" class="badge">Active</span>
+                <span v-if="preset.id === activePresetIdForTab" class="badge">Активен</span>
               </div>
               <div class="preset-actions">
                 <button
                   :disabled="busy || preset.id === activePresetIdForTab"
                   @click="setActivePreset(activePresetTab, preset.id)"
                 >
-                  Set active
+                  Сделать активным
                 </button>
-                <button :disabled="busy" @click="openEditPresetModal(preset)">Edit</button>
-                <button class="danger" :disabled="busy" @click="deletePreset(preset.id)">Delete</button>
+                <button :disabled="busy" @click="openEditPresetModal(preset)">Редактировать</button>
+                <button class="danger" :disabled="busy" @click="deletePreset(preset.id)">Удалить</button>
               </div>
             </article>
 
-            <p v-if="activeTabPresets.length === 0" class="empty">No presets for this type.</p>
+            <p v-if="activeTabPresets.length === 0" class="empty">Для этого типа пресетов пока нет.</p>
           </div>
         </section>
 
         <section class="card">
           <div class="section-head">
-            <h2>Banners</h2>
-            <button :disabled="busy" @click="openCreateBannerModal">Create</button>
+            <h2>Баннеры</h2>
+            <button :disabled="busy" @click="openCreateBannerModal">Создать</button>
           </div>
 
           <table class="table">
             <thead>
               <tr>
-                <th>Placement</th>
-                <th>After row</th>
-                <th>Enabled</th>
-                <th>Sort</th>
-                <th>Actions</th>
+                <th>Размещение</th>
+                <th>После ряда</th>
+                <th>Включен</th>
+                <th>Сортировка</th>
+                <th>Действия</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="banner in banners" :key="banner.id">
-                <td>{{ banner.placement }}</td>
+                <td>{{ placementLabel(banner.placement) }}</td>
                 <td>{{ banner.after_row || "—" }}</td>
                 <td>
                   <input
@@ -156,12 +156,12 @@
                 </td>
                 <td>{{ banner.sort_order }}</td>
                 <td class="row-actions">
-                  <button :disabled="busy" @click="openEditBannerModal(banner)">Edit</button>
-                  <button class="danger" :disabled="busy" @click="deleteBanner(banner.id)">Delete</button>
+                  <button :disabled="busy" @click="openEditBannerModal(banner)">Редактировать</button>
+                  <button class="danger" :disabled="busy" @click="deleteBanner(banner.id)">Удалить</button>
                 </td>
               </tr>
               <tr v-if="banners.length === 0">
-                <td colspan="5" class="empty">No banners configured.</td>
+                <td colspan="5" class="empty">Баннеры не настроены.</td>
               </tr>
             </tbody>
           </table>
@@ -170,13 +170,13 @@
 
       <aside class="preview-panel">
         <div class="preview-head">
-          <h2>Live preview (draft)</h2>
+          <h2>Живое превью (черновик)</h2>
           <div class="tabs">
             <button :class="{ active: previewMode === 'catalog' }" :disabled="busy" @click="previewMode = 'catalog'">
-              Catalog Preview
+              Превью каталога
             </button>
             <button :class="{ active: previewMode === 'product' }" :disabled="busy" @click="previewMode = 'product'">
-              Product Preview
+              Превью товара
             </button>
           </div>
         </div>
@@ -202,17 +202,17 @@
                       <p v-else-if="block.type === 'price'" class="price-line">
                         {{ item.product.price }} RUB
                       </p>
-                      <p v-else-if="block.type === 'rating'" class="muted">Rating: {{ item.product.rating }}</p>
+                      <p v-else-if="block.type === 'rating'" class="muted">Рейтинг: {{ item.product.rating }}</p>
                       <p v-else-if="block.type === 'reviews_count'" class="muted">
-                        Reviews: {{ item.product.reviews_count }}
+                        Отзывы: {{ item.product.reviews_count }}
                       </p>
-                      <button v-else-if="block.type === 'buy_button'">Buy</button>
+                      <button v-else-if="block.type === 'buy_button'">Купить</button>
                     </template>
                   </div>
                 </article>
 
                 <a v-else class="preview-banner" :href="item.banner.link_url" target="_blank" rel="noopener noreferrer">
-                  <img :src="item.banner.image_url" alt="banner" />
+                  <img :src="item.banner.image_url" alt="Баннер" />
                 </a>
               </template>
             </div>
@@ -221,33 +221,22 @@
           <template v-else>
             <div class="preview-product" :class="`layout-${productPagePreviewConfig.layout_mode}`">
               <div class="preview-product-media">
-                <img src="https://dummyimage.com/800x600/e5e5e5/404040&text=Product" alt="preview" />
+                <img src="https://dummyimage.com/800x600/e5e5e5/404040" alt="Превью товара" />
               </div>
 
               <div class="preview-product-details">
                 <template v-for="block in productPagePreviewBlocks" :key="`page-preview-${block.type}`">
-                  <h3 v-if="block.type === 'title'">Mock Product</h3>
+                  <h3 v-if="block.type === 'title'">Демо-товар</h3>
                   <p v-else-if="block.type === 'short_description'" class="muted">
-                    Lightweight preview description for product page preset.
+                    Короткое описание для предпросмотра пресета страницы товара.
                   </p>
                   <p v-else-if="block.type === 'price'" class="price-line">2999 RUB</p>
-                  <p v-else-if="block.type === 'rating'" class="muted">Rating: 4.7</p>
-                  <p v-else-if="block.type === 'reviews_count'" class="muted">Reviews: 21</p>
-                  <button v-else-if="block.type === 'buy_button'">Add to cart</button>
+                  <p v-else-if="block.type === 'rating'" class="muted">Рейтинг: 4.7</p>
+                  <p v-else-if="block.type === 'reviews_count'" class="muted">Отзывы: 21</p>
+                  <button v-else-if="block.type === 'buy_button'">Добавить в корзину</button>
                 </template>
               </div>
 
-              <div class="preview-product-card">
-                <h4>Product card preset</h4>
-                <template v-for="block in productCardPreviewBlocks" :key="`card-preview-${block.type}`">
-                  <p v-if="block.type === 'title'">Mock Product</p>
-                  <p v-else-if="block.type === 'short_description'" class="muted">Short preview copy.</p>
-                  <p v-else-if="block.type === 'price'" class="price-line">2999 RUB</p>
-                  <p v-else-if="block.type === 'rating'" class="muted">Rating: 4.7</p>
-                  <p v-else-if="block.type === 'reviews_count'" class="muted">Reviews: 21</p>
-                  <button v-else-if="block.type === 'buy_button'">Buy</button>
-                </template>
-              </div>
             </div>
           </template>
         </div>
@@ -257,41 +246,41 @@
     <div v-if="presetModalOpen" class="modal" @click.self="closePresetModal">
       <div class="modal-card wide">
         <div class="modal-head">
-          <h3>{{ editingPresetId ? "Edit preset" : "Create preset" }}</h3>
-          <button @click="closePresetModal">Close</button>
+          <h3>{{ editingPresetId ? "Редактировать пресет" : "Создать пресет" }}</h3>
+          <button @click="closePresetModal">Закрыть</button>
         </div>
 
         <label>
-          <span>Name</span>
+          <span>Название</span>
           <input v-model="presetForm.name" type="text" />
         </label>
 
         <div class="grid-2">
           <label>
-            <span>Layout mode</span>
+            <span>Режим компоновки</span>
             <select v-model="presetForm.config.layout_mode">
-              <option value="media_left">media_left</option>
-              <option value="media_top">media_top</option>
-              <option value="compact">compact</option>
+              <option value="media_left">Медиа слева</option>
+              <option value="media_top">Медиа сверху</option>
+              <option value="compact">Компактный</option>
             </select>
           </label>
 
           <label>
-            <span>Photo mode</span>
+            <span>Режим фото</span>
             <select v-model="presetForm.config.photo_mode">
-              <option value="thumbnails_right">thumbnails_right</option>
-              <option value="thumbnails_bottom">thumbnails_bottom</option>
-              <option value="hover_carousel">hover_carousel</option>
+              <option value="thumbnails_right">Миниатюры справа</option>
+              <option value="thumbnails_bottom">Миниатюры снизу</option>
+              <option value="hover_carousel">Карусель при наведении</option>
             </select>
           </label>
         </div>
 
         <div class="blocks-editor">
-          <h4>Blocks</h4>
+          <h4>Блоки</h4>
           <article v-for="(block, index) in presetForm.config.blocks" :key="block.type" class="block-row">
             <label class="checkbox-row">
               <input v-model="block.visible" type="checkbox" />
-              <span>{{ block.type }}</span>
+              <span>{{ blockTypeLabel(block.type) }}</span>
             </label>
             <div class="block-actions">
               <button :disabled="index === 0" @click="moveBlock(index, -1)">↑</button>
@@ -301,7 +290,7 @@
         </div>
 
         <div class="modal-actions">
-          <button :disabled="busy" @click="savePreset">Save preset</button>
+          <button :disabled="busy" @click="savePreset">Сохранить пресет</button>
         </div>
       </div>
     </div>
@@ -309,45 +298,45 @@
     <div v-if="bannerModalOpen" class="modal" @click.self="closeBannerModal">
       <div class="modal-card">
         <div class="modal-head">
-          <h3>{{ editingBannerId ? "Edit banner" : "Create banner" }}</h3>
-          <button @click="closeBannerModal">Close</button>
+          <h3>{{ editingBannerId ? "Редактировать баннер" : "Создать баннер" }}</h3>
+          <button @click="closeBannerModal">Закрыть</button>
         </div>
 
         <label>
-          <span>Image URL</span>
+          <span>Ссылка на изображение</span>
           <input v-model="bannerForm.image_url" type="url" placeholder="https://..." />
         </label>
 
         <label>
-          <span>Link URL</span>
+          <span>Ссылка перехода</span>
           <input v-model="bannerForm.link_url" type="url" placeholder="https://..." />
         </label>
 
         <label>
-          <span>Placement</span>
+          <span>Размещение</span>
           <select v-model="bannerForm.placement">
-            <option value="below_header">below_header</option>
-            <option value="in_grid">in_grid</option>
+            <option value="below_header">Под шапкой</option>
+            <option value="in_grid">В сетке</option>
           </select>
         </label>
 
         <label v-if="bannerForm.placement === 'in_grid'">
-          <span>After row</span>
+          <span>После ряда</span>
           <input v-model.number="bannerForm.after_row" type="number" min="1" step="1" />
         </label>
 
         <label>
-          <span>Sort order</span>
+          <span>Порядок сортировки</span>
           <input v-model.number="bannerForm.sort_order" type="number" />
         </label>
 
         <label class="checkbox-row">
           <input v-model="bannerForm.is_enabled" type="checkbox" />
-          <span>Enabled</span>
+          <span>Включен</span>
         </label>
 
         <div class="modal-actions">
-          <button :disabled="busy" @click="saveBanner">Save banner</button>
+          <button :disabled="busy" @click="saveBanner">Сохранить баннер</button>
         </div>
       </div>
     </div>
@@ -355,6 +344,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, reactive, ref } from "vue";
 
 import type {
@@ -380,48 +370,85 @@ import {
 } from "../api/appearance";
 import { buildThemeTokens, defaultPresetConfig, normalizePresetConfig, spacingLevelToPixels, visibleBlocks } from "../utils/appearance";
 
-const presetTabs: Array<{ type: AppearancePresetType; label: string }> = [
-  { type: "catalog_card", label: "Catalog Card" },
-  { type: "product_page", label: "Product Page" },
-  { type: "product_card", label: "Product Card" }
+type EditorPresetType = "catalog_card" | "product_page";
+
+const presetTabs: Array<{ type: EditorPresetType; label: string }> = [
+  { type: "catalog_card", label: "Карточка каталога" },
+  { type: "product_page", label: "Страница товара" }
 ];
 
 const mockProducts = [
   {
     id: "m-1",
-    title: "Brew Kit Alpha",
-    description: "Compact coffee set for daily brewing.",
+    title: "Кофейный набор",
+    description: "Компактный кофейный набор для ежедневного использования.",
     price: "2990",
-    image_url: "https://dummyimage.com/600x420/d8d8d8/404040&text=Alpha",
+    image_url: "https://dummyimage.com/600x420/d8d8d8/404040",
     rating: "4.8",
     reviews_count: 21
   },
   {
     id: "m-2",
-    title: "Brew Kit Beta",
-    description: "Manual brewing tools with glass server.",
+    title: "Инструменты для кофе",
+    description: "Инструменты для ручного заваривания со стеклянным сервером.",
     price: "3590",
-    image_url: "https://dummyimage.com/600x420/cccccc/404040&text=Beta",
+    image_url: "https://dummyimage.com/600x420/cccccc/404040",
     rating: "4.5",
     reviews_count: 14
   },
   {
     id: "m-3",
-    title: "Brew Kit Gamma",
-    description: "Starter pack for pour-over routine.",
+    title: "Стартовый набор для варки кофе",
+    description: "Стартовый набор для воронки и ручного заваривания.",
     price: "1890",
-    image_url: "https://dummyimage.com/600x420/e0e0e0/404040&text=Gamma",
+    image_url: "https://dummyimage.com/600x420/e0e0e0/404040",
     rating: "4.2",
     reviews_count: 8
   },
   {
     id: "m-4",
-    title: "Brew Kit Delta",
-    description: "Travel-friendly setup with compact grinder.",
+    title: "Карманный кофейный набор",
+    description: "Дорожный набор с компактной кофемолкой.",
     price: "2790",
-    image_url: "https://dummyimage.com/600x420/f0f0f0/404040&text=Delta",
+    image_url: "https://dummyimage.com/600x420/f0f0f0/404040",
     rating: "4.6",
     reviews_count: 17
+  },
+  {
+    id: "m-5",
+    title: "Футболки неделька",
+    description: "Набор из 7ми разных футболок",
+    price: "3000",
+    image_url: "https://dummyimage.com/600x420/f0f0f0/404040",
+    rating: "5.0",
+    reviews_count: 10
+  },
+  {
+    id: "m-6",
+    title: "Носки 10 пар",
+    description: "Набор из 10 одинаковых пар носков",
+    price: "2790",
+    image_url: "https://dummyimage.com/600x420/f0f0f0/404040",
+    rating: "4.5",
+    reviews_count: 20
+  },
+  {
+    id: "m-7",
+    title: "Шапка",
+    description: "Теплая шапка на холодную погоду",
+    price: "1500",
+    image_url: "https://dummyimage.com/600x420/f0f0f0/404040",
+    rating: "4.9",
+    reviews_count: 5
+  },
+  {
+    id: "m-8",
+    title: "Рюкзак",
+    description: "Прочный рюкзак для путешествий и повседневного использования.",
+    price: "4500",
+    image_url: "https://dummyimage.com/600x420/f0f0f0/404040",
+    rating: "4.7",
+    reviews_count: 12
   }
 ];
 
@@ -441,7 +468,7 @@ const presets = ref<Record<AppearancePresetType, AppearancePreset[]>>({
 });
 const banners = ref<AppearanceBanner[]>([]);
 
-const activePresetTab = ref<AppearancePresetType>("catalog_card");
+const activePresetTab = ref<EditorPresetType>("catalog_card");
 const previewMode = ref<"catalog" | "product">("catalog");
 
 const presetModalOpen = ref(false);
@@ -472,6 +499,20 @@ const logoPreviewData = ref<string | null>(null);
 const clearLogo = ref(false);
 
 const busy = computed(() => loading.value || saving.value || publishing.value || resetting.value);
+const blockTypeLabel = (type: string) => {
+  if (type === "title") return "Заголовок";
+  if (type === "short_description") return "Краткое описание";
+  if (type === "price") return "Цена";
+  if (type === "rating") return "Рейтинг";
+  if (type === "reviews_count") return "Количество отзывов";
+  if (type === "buy_button") return "Кнопка покупки";
+  return type;
+};
+const placementLabel = (placement: string) => {
+  if (placement === "below_header") return "Под шапкой";
+  if (placement === "in_grid") return "В сетке";
+  return placement;
+};
 const logoPreviewSrc = computed(() => {
   if (logoPreviewData.value) {
     return logoPreviewData.value;
@@ -489,13 +530,9 @@ const activePresetIdForTab = computed(() => {
   if (!draft.value) {
     return null;
   }
-  if (activePresetTab.value === "catalog_card") {
-    return draft.value.active_catalog_preset_id;
-  }
-  if (activePresetTab.value === "product_page") {
-    return draft.value.active_product_page_preset_id;
-  }
-  return draft.value.active_product_card_preset_id;
+  return activePresetTab.value === "catalog_card"
+    ? draft.value.active_catalog_preset_id
+    : draft.value.active_product_page_preset_id;
 });
 
 const activeCatalogPreset = computed(() => {
@@ -510,25 +547,15 @@ const activeProductPagePreset = computed(() => {
   return found || null;
 });
 
-const activeProductCardPreset = computed(() => {
-  const id = draft.value?.active_product_card_preset_id;
-  const found = presets.value.product_card.find((item) => item.id === id) || presets.value.product_card[0];
-  return found || null;
-});
-
 const catalogPreviewConfig = computed(() =>
   normalizePresetConfig(activeCatalogPreset.value?.config, "catalog_card")
 );
 const productPagePreviewConfig = computed(() =>
   normalizePresetConfig(activeProductPagePreset.value?.config, "product_page")
 );
-const productCardPreviewConfig = computed(() =>
-  normalizePresetConfig(activeProductCardPreset.value?.config, "product_card")
-);
 
 const catalogPreviewBlocks = computed(() => visibleBlocks(catalogPreviewConfig.value));
 const productPagePreviewBlocks = computed(() => visibleBlocks(productPagePreviewConfig.value));
-const productCardPreviewBlocks = computed(() => visibleBlocks(productCardPreviewConfig.value));
 
 const previewStyle = computed(() => {
   if (!draft.value) {
@@ -647,16 +674,15 @@ const fetchDraft = async () => {
 };
 
 const fetchPresets = async () => {
-  const [catalog, productPage, productCard] = await Promise.all([
+  const [catalog, productPage] = await Promise.all([
     listAppearancePresets("catalog_card"),
-    listAppearancePresets("product_page"),
-    listAppearancePresets("product_card")
+    listAppearancePresets("product_page")
   ]);
 
   presets.value = {
     catalog_card: catalog.data?.results || [],
     product_page: productPage.data?.results || [],
-    product_card: productCard.data?.results || []
+    product_card: []
   };
 };
 
@@ -671,7 +697,7 @@ const loadAll = async () => {
   try {
     await Promise.all([fetchDraft(), fetchPresets(), fetchBanners()]);
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load appearance data.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить данные оформления.";
   } finally {
     loading.value = false;
   }
@@ -736,10 +762,10 @@ const saveDraftSettings = async () => {
     const response = await updateAppearanceDraft(payload);
     draft.value = response.data;
     resetLogoState();
-    showToast("Draft settings saved.");
+    showToast("Настройки черновика сохранены.");
     return true;
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to save draft settings.";
+    error.value = err?.response?.data?.detail || "Не удалось сохранить настройки черновика.";
     return false;
   } finally {
     saving.value = false;
@@ -767,9 +793,9 @@ const setActivePreset = async (type: AppearancePresetType, presetId: number) => 
   try {
     const response = await updateAppearanceDraft(payload);
     draft.value = response.data;
-    showToast("Active preset updated.");
+    showToast("Активный пресет обновлен.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to set active preset.";
+    error.value = err?.response?.data?.detail || "Не удалось установить активный пресет.";
   } finally {
     saving.value = false;
   }
@@ -809,7 +835,7 @@ const moveBlock = (index: number, delta: number) => {
 
 const savePreset = async () => {
   if (!presetForm.name.trim()) {
-    error.value = "Preset name is required.";
+    error.value = "Название пресета обязательно.";
     return;
   }
 
@@ -822,28 +848,28 @@ const savePreset = async () => {
         name: presetForm.name.trim(),
         config: normalizedConfig
       });
-      showToast("Preset updated.");
+      showToast("Пресет обновлен.");
     } else {
       await createAppearancePreset({
         preset_type: presetForm.preset_type,
         name: presetForm.name.trim(),
         config: normalizedConfig
       });
-      showToast("Preset created.");
+      showToast("Пресет создан.");
     }
 
     await fetchPresets();
     await fetchDraft();
     presetModalOpen.value = false;
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to save preset.";
+    error.value = err?.response?.data?.detail || "Не удалось сохранить пресет.";
   } finally {
     saving.value = false;
   }
 };
 
 const deletePreset = async (presetId: number) => {
-  if (!window.confirm("Delete this preset?")) {
+  if (!window.confirm("Удалить этот пресет?")) {
     return;
   }
 
@@ -853,9 +879,9 @@ const deletePreset = async (presetId: number) => {
     await deleteAppearancePreset(presetId);
     await fetchPresets();
     await fetchDraft();
-    showToast("Preset deleted.");
+    showToast("Пресет удален.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to delete preset.";
+    error.value = err?.response?.data?.detail || "Не удалось удалить пресет.";
   } finally {
     saving.value = false;
   }
@@ -902,23 +928,23 @@ const saveBanner = async () => {
 
     if (editingBannerId.value) {
       await updateAppearanceBanner(editingBannerId.value, payload);
-      showToast("Banner updated.");
+      showToast("Баннер обновлен.");
     } else {
       await createAppearanceBanner(payload);
-      showToast("Banner created.");
+      showToast("Баннер создан.");
     }
 
     await fetchBanners();
     bannerModalOpen.value = false;
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to save banner.";
+    error.value = err?.response?.data?.detail || "Не удалось сохранить баннер.";
   } finally {
     saving.value = false;
   }
 };
 
 const deleteBanner = async (bannerId: number) => {
-  if (!window.confirm("Delete this banner?")) {
+  if (!window.confirm("Удалить этот баннер?")) {
     return;
   }
 
@@ -927,9 +953,9 @@ const deleteBanner = async (bannerId: number) => {
   try {
     await deleteAppearanceBanner(bannerId);
     await fetchBanners();
-    showToast("Banner deleted.");
+    showToast("Баннер удален.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to delete banner.";
+    error.value = err?.response?.data?.detail || "Не удалось удалить баннер.";
   } finally {
     saving.value = false;
   }
@@ -942,7 +968,7 @@ const toggleBannerEnabled = async (banner: AppearanceBanner, nextValue: boolean)
     await updateAppearanceBanner(banner.id, { is_enabled: nextValue });
     banner.is_enabled = nextValue;
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to update banner.";
+    error.value = err?.response?.data?.detail || "Не удалось обновить баннер.";
   } finally {
     saving.value = false;
   }
@@ -961,9 +987,9 @@ const handlePublish = async () => {
       return;
     }
     await publishAppearanceDraft();
-    showToast("Draft published.");
+    showToast("Черновик опубликован.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to publish draft.";
+    error.value = err?.response?.data?.detail || "Не удалось опубликовать черновик.";
   } finally {
     publishing.value = false;
   }
@@ -975,9 +1001,9 @@ const handleReset = async () => {
   try {
     await resetAppearanceDraft();
     await loadAll();
-    showToast("Draft reset to published.");
+    showToast("Черновик сброшен до опубликованной версии.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to reset draft.";
+    error.value = err?.response?.data?.detail || "Не удалось сбросить черновик.";
   } finally {
     resetting.value = false;
   }
@@ -1221,8 +1247,7 @@ label {
 }
 
 .preview-body button,
-.preview-product-details button,
-.preview-product-card button {
+.preview-product-details button {
   margin-top: auto;
 }
 
@@ -1243,7 +1268,7 @@ label {
 
 .preview-product {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 280px;
+  grid-template-columns: 1.3fr 1fr;
   gap: 12px;
 }
 
@@ -1252,12 +1277,11 @@ label {
 }
 
 .preview-product.layout-compact {
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 320px;
 }
 
 .preview-product-media,
-.preview-product-details,
-.preview-product-card {
+.preview-product-details {
   border: 1px solid var(--preview-border, #ddd);
   background: var(--preview-surface, #fff);
   border-radius: 10px;
@@ -1270,8 +1294,7 @@ label {
   object-fit: cover;
 }
 
-.preview-product-details,
-.preview-product-card {
+.preview-product-details {
   display: flex;
   flex-direction: column;
   gap: 8px;

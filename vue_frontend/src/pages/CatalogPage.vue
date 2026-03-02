@@ -1,26 +1,26 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Catalog</h1>
+    <h1>Каталог</h1>
 
     <form class="search-panel" @submit.prevent="applyFilters">
-      <label class="search-label" for="search">Search products</label>
+      <label class="search-label" for="search">Поиск товаров</label>
       <div class="search-row">
-        <input id="search" v-model="search" class="search-input" placeholder="Search by title" />
-        <button type="submit" class="btn btn-primary">Search</button>
+        <input id="search" v-model="search" class="search-input" placeholder="Поиск по названию" />
+        <button type="submit" class="btn btn-primary">Найти</button>
         <button
           v-if="hasActiveFilters"
           type="button"
           class="btn btn-outline"
           @click="resetFilters"
         >
-          Reset
+          Сбросить
         </button>
       </div>
     </form>
 
     <div class="layout">
       <aside class="categories">
-        <h2>Categories</h2>
+        <h2>Категории</h2>
         <button
           type="button"
           class="category-btn"
@@ -43,7 +43,7 @@
 
       <section class="products">
         <div class="products-toolbar">
-          <span class="results-count">{{ catalogStore.pagination.total || 0 }} items</span>
+          <span class="results-count">{{ catalogStore.pagination.total || 0 }} шт.</span>
 
           <div ref="sortMenuRef" class="sort-wrap">
             <button
@@ -84,7 +84,7 @@
           </div>
         </div>
 
-        <div v-if="catalogStore.loading" class="state-box">Loading...</div>
+        <div v-if="catalogStore.loading" class="state-box">Загрузка...</div>
         <div v-else-if="catalogStore.error" class="state-box error">{{ catalogStore.error }}</div>
 
         <div v-else class="grid" :style="gridStyle">
@@ -102,7 +102,7 @@
                   :alt="item.product.title"
                   class="card-image"
                 />
-                <div v-else class="card-placeholder">No image</div>
+                <div v-else class="card-placeholder">Нет изображения</div>
               </RouterLink>
 
               <div class="card-body">
@@ -144,7 +144,7 @@
                     class="btn btn-primary buy-btn"
                     @click="addToCart(item.product.id)"
                   >
-                    Add to cart
+                    Добавить в корзину
                   </button>
                 </template>
               </div>
@@ -157,23 +157,23 @@
               target="_blank"
               rel="noopener noreferrer"
             >
-              <img class="grid-banner-image" :src="item.banner.image_url" alt="Catalog banner" />
+              <img class="grid-banner-image" :src="item.banner.image_url" alt="Баннер каталога" />
             </a>
           </template>
         </div>
 
         <div class="pagination">
           <button type="button" class="btn btn-neutral" :disabled="page <= 1" @click="changePage(page - 1)">
-            Prev
+            Назад
           </button>
-          <span>Page {{ page }} of {{ totalPages }}</span>
+          <span>Страница {{ page }} из {{ totalPages }}</span>
           <button
             type="button"
             class="btn btn-neutral"
             :disabled="page >= totalPages"
             @click="changePage(page + 1)"
           >
-            Next
+            Вперёд
           </button>
         </div>
       </section>
@@ -182,6 +182,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -211,8 +212,8 @@ const sortOptions = [
   { value: "", label: "По умолчанию" },
   { value: "price", label: "Цена: по возрастанию" },
   { value: "-price", label: "Цена: по убыванию" },
-  { value: "title", label: "Название: A-Z" },
-  { value: "-title", label: "Название: Z-A" }
+  { value: "title", label: "Название: А-Я" },
+  { value: "-title", label: "Название: Я-А" }
 ];
 
 const page = computed(() => catalogStore.pagination.page || 1);
@@ -388,9 +389,9 @@ const hasReviews = (productId?: string) => getProductSummary(productId).reviews_
 const reviewsCountText = (productId?: string) => {
   const count = getProductSummary(productId).reviews_count;
   if (count <= 0) {
-    return "No reviews";
+    return "Нет отзывов";
   }
-  return `${count} review${count === 1 ? "" : "s"}`;
+  return `${count} ${count === 1 ? "отзыв" : "отзывов"}`;
 };
 
 const hasDiscount = (product: any) => {
@@ -410,7 +411,7 @@ const discountedPrice = (product: any) => {
 
 const shortDescription = (description?: string | null) => {
   if (!description) {
-    return "No description";
+    return "Нет описания";
   }
   if (description.length <= 120) {
     return description;

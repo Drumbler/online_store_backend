@@ -1,26 +1,26 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Account</h1>
+    <h1>Личный кабинет</h1>
 
-    <div v-if="loading" class="state-box">Loading profile...</div>
+    <div v-if="loading" class="state-box">Профиль загружается...</div>
     <div v-else>
       <div class="card surface-card">
-        <h2>Display name</h2>
+        <h2>Имя в профиле</h2>
         <div class="field">
-          <label for="display-name">Display name</label>
-          <input id="display-name" v-model="nameInput" type="text" placeholder="Enter your name" />
+          <label for="display-name">Имя в профиле</label>
+          <input id="display-name" v-model="nameInput" type="text" placeholder="Введите имя" />
         </div>
         <div class="actions">
-          <button type="button" class="btn btn-primary" :disabled="nameSaving" @click="saveName">Save</button>
+          <button type="button" class="btn btn-primary" :disabled="nameSaving" @click="saveName">Сохранить</button>
           <span v-if="nameStatus" class="state-box success">{{ nameStatus }}</span>
           <span v-if="nameError" class="state-box error">{{ nameError }}</span>
         </div>
       </div>
 
       <div class="card surface-card">
-        <h2>Email</h2>
+        <h2>Эл. почта</h2>
         <div class="field">
-          <label for="email">Email</label>
+          <label for="email">Эл. почта</label>
           <input
             id="email"
             v-model="emailInput"
@@ -30,13 +30,13 @@
           />
         </div>
         <p v-if="emailHelperText" class="helper">{{ emailHelperText }}</p>
-        <p v-if="emailVerifiedLabel" class="helper success">Verified</p>
+        <p v-if="emailVerifiedLabel" class="helper success">Подтверждено</p>
         <div class="actions">
           <button type="button" class="btn btn-neutral" :disabled="emailChangeDisabled" @click="enableEmailEditing">
-            Change
+            Изменить
           </button>
           <button type="button" class="btn btn-primary" :disabled="emailConfirmDisabled" @click="confirmEmail">
-            Confirm
+            Подтвердить
           </button>
         </div>
         <div class="status-group">
@@ -46,22 +46,22 @@
       </div>
 
       <div class="card surface-card">
-        <h2>Change password</h2>
+        <h2>Смена пароля</h2>
         <form class="form" @submit.prevent="submitPassword">
           <label class="field">
-            <span>Current password</span>
+            <span>Текущий пароль</span>
             <input v-model="currentPassword" type="password" required />
           </label>
           <label class="field">
-            <span>New password</span>
+            <span>Новый пароль</span>
             <input v-model="newPassword" type="password" required />
           </label>
           <label class="field">
-            <span>Confirm new password</span>
+            <span>Повтор нового пароля</span>
             <input v-model="newPasswordConfirm" type="password" required />
           </label>
           <div class="actions">
-            <button type="submit" class="btn btn-primary" :disabled="passwordSaving">Change password</button>
+            <button type="submit" class="btn btn-primary" :disabled="passwordSaving">Изменить пароль</button>
           </div>
         </form>
         <div class="status-group">
@@ -70,9 +70,9 @@
         </div>
       </div>
       <div class="card surface-card">
-        <h2>Session</h2>
+        <h2>Сессия</h2>
         <div class="actions">
-          <button type="button" class="btn btn-outline danger-button" @click="handleLogout">Logout</button>
+          <button type="button" class="btn btn-outline danger-button" @click="handleLogout">Выйти</button>
         </div>
         <div class="status-group">
           <span v-if="logoutStatus" class="state-box success">{{ logoutStatus }}</span>
@@ -84,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
@@ -146,14 +147,14 @@ const hasSavedEmail = computed(() => Boolean(savedEmail.value));
 const emailDirty = computed(() => emailInput.value.trim() !== savedEmail.value);
 
 const emailInputDisabled = computed(() => emailVerified.value && !editingEmail.value);
-const emailPlaceholder = computed(() => (hasSavedEmail.value ? "" : "Bind your email"));
+const emailPlaceholder = computed(() => (hasSavedEmail.value ? "" : "Укажите эл. почту"));
 
 const emailHelperText = computed(() => {
   if (!hasSavedEmail.value) {
-    return "Bind email to enable advanced profile features";
+    return "Добавьте эл. почту, чтобы включить расширенные возможности профиля";
   }
   if (!emailVerified.value) {
-    return "Email is not verified. Please confirm.";
+    return "Эл. почта не подтверждена. Подтвердите адрес.";
   }
   return "";
 });
@@ -185,9 +186,9 @@ const saveName = async () => {
   try {
     const response = await updateAccountName({ name: nameInput.value || "" });
     profile.value = response.data;
-    nameStatus.value = "Saved.";
+    nameStatus.value = "Сохранено.";
   } catch (err: any) {
-    nameError.value = extractError(err, "Failed to update display name.");
+    nameError.value = extractError(err, "Не удалось обновить имя в профиле.");
   } finally {
     nameSaving.value = false;
   }
@@ -211,16 +212,16 @@ const confirmEmail = async () => {
       const response = await setAccountEmail({ email: emailInput.value.trim() });
       profile.value = response.data;
       editingEmail.value = false;
-      emailStatus.value = "Email saved. Please confirm to verify.";
+      emailStatus.value = "Эл. почта сохранена. Подтвердите адрес.";
       return;
     }
 
     if (!emailVerified.value) {
       await requestEmailVerification();
-      emailStatus.value = "An email has been sent with a verification link.";
+      emailStatus.value = "Письмо со ссылкой для подтверждения отправлено.";
     }
   } catch (err: any) {
-    emailError.value = extractError(err, "Email action failed.");
+    emailError.value = extractError(err, "Не удалось выполнить действие с эл. почтой.");
   } finally {
     emailSaving.value = false;
   }
@@ -236,12 +237,12 @@ const submitPassword = async () => {
       new_password: newPassword.value,
       new_password_confirm: newPasswordConfirm.value
     });
-    passwordStatus.value = "Password updated.";
+    passwordStatus.value = "Пароль обновлен.";
     currentPassword.value = "";
     newPassword.value = "";
     newPasswordConfirm.value = "";
   } catch (err: any) {
-    passwordError.value = extractError(err, "Failed to change password.");
+    passwordError.value = extractError(err, "Не удалось изменить пароль.");
   } finally {
     passwordSaving.value = false;
   }
@@ -252,10 +253,10 @@ const handleLogout = async () => {
   logoutError.value = null;
   try {
     await authStore.logout();
-    logoutStatus.value = "You have been logged out.";
+    logoutStatus.value = "Вы вышли из аккаунта.";
     await router.push("/");
   } catch {
-    logoutError.value = "Failed to log out.";
+    logoutError.value = "Не удалось выйти из аккаунта.";
   }
 };
 </script>

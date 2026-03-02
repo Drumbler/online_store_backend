@@ -1,12 +1,18 @@
+"""Модели для хранения конфигурации внешних интеграций."""
+
 from django.db import models
 
 
 class IntegrationKind(models.TextChoices):
+    """Типы интеграций, доступные в проекте."""
+
     PAYMENT = "payment", "Payment"
     SHIPPING = "shipping", "Shipping"
 
 
 class IntegrationConfig(models.Model):
+    """Параметры подключения и режим работы конкретного провайдера."""
+
     kind = models.CharField(max_length=32, choices=IntegrationKind.choices)
     provider_id = models.CharField(max_length=64)
     enabled = models.BooleanField(default=False)

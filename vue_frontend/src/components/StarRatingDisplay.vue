@@ -6,6 +6,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed } from "vue";
 
 const props = withDefaults(

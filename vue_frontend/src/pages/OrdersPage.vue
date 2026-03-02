@@ -2,42 +2,42 @@
   <section class="page bg-app text-app">
     <p v-if="toast" class="state-box success">{{ toast }}</p>
 
-    <h1 v-if="isLoggedIn">My Orders</h1>
-    <h1 v-else>Order Lookup</h1>
+    <h1 v-if="isLoggedIn">Мои заказы</h1>
+    <h1 v-else>Поиск заказа</h1>
 
     <section v-if="eligibleProducts.length" class="reviews-strip surface-card">
       <div class="strip-header">
-        <h2>Rate your recent purchases</h2>
+        <h2>Оцените недавние покупки</h2>
       </div>
       <div class="eligible-track">
         <article v-for="item in eligibleProducts" :key="item.review_token" class="eligible-card">
           <img v-if="item.image_url" :src="item.image_url" :alt="item.title" class="eligible-image" />
-          <div v-else class="eligible-placeholder">No image</div>
+          <div v-else class="eligible-placeholder">Нет изображения</div>
           <div class="eligible-content">
             <p class="eligible-title">{{ item.title || item.product_id }}</p>
-            <button type="button" class="btn btn-primary" @click="openReviewModal(item)">Leave review</button>
+            <button type="button" class="btn btn-primary" @click="openReviewModal(item)">Оставить отзыв</button>
           </div>
         </article>
       </div>
     </section>
 
     <div v-if="isLoggedIn">
-      <div v-if="loadingOrders" class="state-box">Loading...</div>
+      <div v-if="loadingOrders" class="state-box">Загрузка...</div>
       <div v-else-if="error" class="state-box error">{{ error }}</div>
       <ul v-else-if="orders.length" class="list">
         <li v-for="order in orders" :key="order.id" class="order surface-card">
-          <div>Order #{{ order.order_number ?? order.id }}</div>
+          <div>Заказ №{{ order.order_number ?? order.id }}</div>
           <div>
-            Status:
+            Статус:
             <span class="order-status" :class="statusToneClass(order.status)">
-              {{ order.status }}
+              {{ statusLabel(order.status) }}
             </span>
           </div>
-          <div>Subtotal: {{ order.subtotal_original }} {{ orderCurrency(order) }}</div>
-          <div>Discount: -{{ order.discount_total }} {{ orderCurrency(order) }}</div>
-          <div>Shipping: {{ order.shipping_price ?? "0.00" }} {{ orderCurrency(order) }}</div>
-          <div>Total: {{ order.total }} {{ orderCurrency(order) }}</div>
-          <div>Created: {{ order.created_at }}</div>
+          <div>Подытог: {{ order.subtotal_original }} {{ orderCurrency(order) }}</div>
+          <div>Скидка: -{{ order.discount_total }} {{ orderCurrency(order) }}</div>
+          <div>Доставка: {{ order.shipping_price ?? "0.00" }} {{ orderCurrency(order) }}</div>
+          <div>Итого: {{ order.total }} {{ orderCurrency(order) }}</div>
+          <div>Создан: {{ order.created_at }}</div>
           <ul v-if="order.items?.length" class="items">
             <li v-for="item in order.items" :key="item.id" class="item-row">
               <div>{{ item.product_title_snapshot }} x {{ item.quantity }}</div>
@@ -51,43 +51,43 @@
                   <span>{{ item.unit_price_final || item.unit_price_snapshot }}</span>
                 </template>
               </div>
-              <div>Line total: {{ item.line_total }} {{ orderCurrency(order) }}</div>
+              <div>Сумма позиции: {{ item.line_total }} {{ orderCurrency(order) }}</div>
             </li>
           </ul>
         </li>
       </ul>
-      <p v-else class="state-box">No orders yet.</p>
+      <p v-else class="state-box">Заказов пока нет.</p>
     </div>
 
     <div v-else class="lookup">
       <form class="form surface-card" @submit.prevent="submitLookup">
         <label class="field">
-          <span>Order number</span>
+          <span>Номер заказа</span>
           <input v-model="lookupNumber" type="text" required />
         </label>
         <label class="field">
-          <span>Order secret</span>
+          <span>Секрет заказа</span>
           <input v-model="lookupSecret" type="text" required />
         </label>
-        <button type="submit" class="btn btn-primary" :disabled="loadingLookup">Find order</button>
+        <button type="submit" class="btn btn-primary" :disabled="loadingLookup">Найти заказ</button>
       </form>
 
-      <div v-if="loadingLookup" class="state-box">Loading...</div>
+      <div v-if="loadingLookup" class="state-box">Загрузка...</div>
       <div v-if="error" class="state-box error">{{ error }}</div>
 
       <div v-if="lookupResult" class="order surface-card">
-        <div>Order #{{ lookupResult.order_number ?? lookupResult.id }}</div>
+        <div>Заказ №{{ lookupResult.order_number ?? lookupResult.id }}</div>
         <div>
-          Status:
+          Статус:
           <span class="order-status" :class="statusToneClass(lookupResult.status)">
-            {{ lookupResult.status }}
+            {{ statusLabel(lookupResult.status) }}
           </span>
         </div>
-        <div>Subtotal: {{ lookupResult.subtotal_original }} {{ lookupResult.currency }}</div>
-        <div>Discount: -{{ lookupResult.discount_total }} {{ lookupResult.currency }}</div>
-        <div>Shipping: {{ lookupResult.shipping_price ?? "0.00" }} {{ lookupResult.currency }}</div>
-        <div>Total: {{ lookupResult.total_price }} {{ lookupResult.currency }}</div>
-        <div>Created: {{ lookupResult.created_at }}</div>
+        <div>Подытог: {{ lookupResult.subtotal_original }} {{ lookupResult.currency }}</div>
+        <div>Скидка: -{{ lookupResult.discount_total }} {{ lookupResult.currency }}</div>
+        <div>Доставка: {{ lookupResult.shipping_price ?? "0.00" }} {{ lookupResult.currency }}</div>
+        <div>Итого: {{ lookupResult.total_price }} {{ lookupResult.currency }}</div>
+        <div>Создан: {{ lookupResult.created_at }}</div>
         <ul v-if="lookupResult.items?.length" class="items">
           <li v-for="(item, index) in lookupResult.items" :key="index" class="item-row">
             <div>{{ item.title_snapshot }} x {{ item.quantity }}</div>
@@ -101,7 +101,7 @@
                 <span>{{ item.unit_price_final || item.unit_price_snapshot }}</span>
               </template>
             </div>
-            <div>Line total: {{ item.line_total }} {{ lookupResult.currency }}</div>
+            <div>Сумма позиции: {{ item.line_total }} {{ lookupResult.currency }}</div>
           </li>
         </ul>
       </div>
@@ -109,7 +109,7 @@
 
     <div v-if="showReviewModal && selectedReviewItem" class="modal" @click.self="closeReviewModal">
       <div class="modal-card surface-card">
-        <h3>Leave review</h3>
+        <h3>Оставить отзыв</h3>
         <p class="review-product">{{ selectedReviewItem.title || selectedReviewItem.product_id }}</p>
 
         <div class="stars" @mouseleave="hoverRating = 0">
@@ -127,31 +127,31 @@
         </div>
 
         <label>
-          Pros
+          Плюсы
           <textarea v-model="reviewPros" rows="3" />
         </label>
 
         <label>
-          Cons
+          Минусы
           <textarea v-model="reviewCons" rows="3" />
         </label>
 
         <label>
-          Comment
+          Комментарий
           <textarea v-model="reviewComment" rows="4" />
         </label>
 
         <label class="check-row">
           <input v-model="reviewAnonymous" type="checkbox" />
-          <span>Leave anonymously</span>
+          <span>Оставить анонимно</span>
         </label>
 
         <p v-if="reviewError" class="state-box error">{{ reviewError }}</p>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-neutral" @click="closeReviewModal">Cancel</button>
+          <button type="button" class="btn btn-neutral" @click="closeReviewModal">Отмена</button>
           <button type="button" class="btn btn-primary" :disabled="submittingReview" @click="submitReviewForm">
-            Submit
+            Отправить
           </button>
         </div>
       </div>
@@ -160,6 +160,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
@@ -217,7 +218,7 @@ const fetchOrders = async () => {
     const data = response.data;
     orders.value = data.results || data || [];
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load orders.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить заказы.";
   } finally {
     loadingOrders.value = false;
   }
@@ -250,7 +251,7 @@ const submitLookup = async () => {
     localStorage.setItem("guestOrderSecret", lookupSecret.value);
     await fetchEligibleReviews();
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Order not found.";
+    error.value = err?.response?.data?.detail || "Заказ не найден.";
   } finally {
     loadingLookup.value = false;
   }
@@ -278,7 +279,7 @@ const submitReviewForm = async () => {
     return;
   }
   if (reviewRating.value < 1 || reviewRating.value > 5) {
-    reviewError.value = "Please choose a rating from 1 to 5.";
+    reviewError.value = "Выберите оценку от 1 до 5.";
     return;
   }
 
@@ -303,9 +304,9 @@ const submitReviewForm = async () => {
       (item) => item.review_token !== selectedReviewItem.value?.review_token
     );
     closeReviewModal();
-    showToast("Review submitted.");
+    showToast("Отзыв отправлен.");
   } catch (err: any) {
-    reviewError.value = err?.response?.data?.detail || "Failed to submit review.";
+    reviewError.value = err?.response?.data?.detail || "Не удалось отправить отзыв.";
   } finally {
     submittingReview.value = false;
   }
@@ -328,6 +329,14 @@ const statusToneClass = (status?: string) => {
     return "status-warn";
   }
   return "status-neutral";
+};
+
+const statusLabel = (status?: string) => {
+  const normalized = String(status || "").toLowerCase();
+  if (/(paid|complete|success|done|delivered)/.test(normalized)) return "Оплачен";
+  if (/(fail|cancel|declin|refund|reject)/.test(normalized)) return "Отменён";
+  if (/(pending|new|process|await)/.test(normalized)) return "В обработке";
+  return status || "Неизвестно";
 };
 
 watch(isLoggedIn, async (value) => {

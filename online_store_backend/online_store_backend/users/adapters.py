@@ -1,3 +1,5 @@
+"""Адаптеры allauth с правилами регистрации для проекта."""
+
 from __future__ import annotations
 
 import typing
@@ -14,16 +16,22 @@ if typing.TYPE_CHECKING:
 
 
 class AccountAdapter(DefaultAccountAdapter):
+    """Адаптер локальной регистрации пользователя."""
+
     def is_open_for_signup(self, request: HttpRequest) -> bool:
+        """Включает/выключает регистрацию через настройку проекта."""
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
+    """Адаптер регистрации пользователей через social auth."""
+
     def is_open_for_signup(
         self,
         request: HttpRequest,
         sociallogin: SocialLogin,
     ) -> bool:
+        """Включает/выключает social-регистрацию через настройку проекта."""
         return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
 
     def populate_user(
@@ -32,11 +40,7 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         sociallogin: SocialLogin,
         data: dict[str, typing.Any],
     ) -> User:
-        """
-        Populates user information from social provider info.
-
-        See: https://docs.allauth.org/en/latest/socialaccount/advanced.html#creating-and-populating-user-instances
-        """
+        """Заполняет display name пользователя из данных соц-провайдера."""
         user = super().populate_user(request, sociallogin, data)
         if not user.name:
             if name := data.get("name"):

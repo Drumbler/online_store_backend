@@ -1,3 +1,5 @@
+"""Настройки Django admin для корзины и позиций."""
+
 from django.contrib import admin
 
 from online_store_backend.cart.models import Cart, CartItem
@@ -5,6 +7,8 @@ from online_store_backend.cart.models import Cart, CartItem
 
 @admin.register(Cart)
 class CartAdmin(admin.ModelAdmin):
+    """Список корзин с фильтрами по статусу и пользователю."""
+
     list_display = ("id", "user", "status", "created_at", "updated_at")
     list_filter = ("status",)
     search_fields = ("user__email", "user__username")
@@ -12,6 +16,8 @@ class CartAdmin(admin.ModelAdmin):
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
+    """Список позиций корзины с базовыми snapshot-полями."""
+
     list_display = (
         "id",
         "cart",

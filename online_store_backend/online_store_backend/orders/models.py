@@ -1,3 +1,5 @@
+"""Модели заказов, оплат, отзывов и событий просмотров."""
+
 from decimal import Decimal
 import secrets
 import string
@@ -7,19 +9,24 @@ from django.db import models
 
 
 def _random_token(length: int) -> str:
+    """Генерирует случайный алфавитно-цифровой токен заданной длины."""
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def generate_order_secret() -> str:
+    """Генерирует короткий секрет для публичного lookup заказа."""
     return _random_token(12)
 
 
 def generate_review_token() -> str:
+    """Генерирует токен для подтверждения права оставить отзыв."""
     return _random_token(24)
 
 
 class OrderStatus(models.TextChoices):
+    """Допустимые статусы жизненного цикла заказа."""
+
     PENDING_PAYMENT = "pending_payment", "Pending payment"
     PAID = "paid", "Paid"
     PAYMENT_FAILED = "payment_failed", "Payment failed"
@@ -27,6 +34,8 @@ class OrderStatus(models.TextChoices):
 
 
 class Order(models.Model):
+    """Заказ пользователя или гостя с итоговой стоимостью и доставкой."""
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders", null=True, blank=True)
     order_secret = models.CharField(max_length=32, default=generate_order_secret)
     status = models.CharField(max_length=32, choices=OrderStatus.choices, default=OrderStatus.PENDING_PAYMENT)
@@ -48,6 +57,8 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
+    """Позиция товара в заказе со snapshot-данными цены/названия."""
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     review_token = models.CharField(max_length=64, unique=True, default=generate_review_token)
     review_left_at = models.DateTimeField(null=True, blank=True)
@@ -70,6 +81,8 @@ class OrderItem(models.Model):
 
 
 class ProductViewEvent(models.Model):
+    """Событие просмотра карточки товара для отчетов и аналитики."""
+
     product_id = models.CharField(max_length=255)
     viewed_at = models.DateTimeField(auto_now_add=True)
 
@@ -84,6 +97,8 @@ class ProductViewEvent(models.Model):
 
 
 class Review(models.Model):
+    """Отзыв по конкретному товару в рамках заказа."""
+
     product_id = models.CharField(max_length=255)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="reviews")
     rating = models.PositiveSmallIntegerField()
@@ -122,12 +137,16 @@ class Review(models.Model):
 
 
 class PaymentStatus(models.TextChoices):
+    """Статусы операций оплаты."""
+
     PENDING = "pending", "Pending"
     SUCCEEDED = "succeeded", "Succeeded"
     FAILED = "failed", "Failed"
 
 
 class Payment(models.Model):
+    """Транзакция оплаты заказа через выбранного провайдера."""
+
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="payments")
     provider_id = models.CharField(max_length=64)
     status = models.CharField(max_length=32, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)

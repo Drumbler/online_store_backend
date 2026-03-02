@@ -1,40 +1,43 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Demo payment</h1>
+    <h1>Демо-оплата</h1>
 
     <p v-if="error" class="state-box error">{{ error }}</p>
 
     <div v-if="paid" class="state-box success">
-      Payment completed.
-      <RouterLink :to="orderLink">Open order status</RouterLink>
+      Оплата завершена.
+      <RouterLink :to="orderLink">Открыть статус заказа</RouterLink>
     </div>
 
     <div v-else class="card surface-card">
-      <p>This is a local demo payment screen.</p>
-      <p>External ID: <strong>{{ externalId || "-" }}</strong></p>
+      <p>Это локальный экран демо-оплаты.</p>
+      <p>Внешний идентификатор: <strong>{{ externalId || "-" }}</strong></p>
 
       <div class="actions">
         <button type="button" class="btn btn-primary" :disabled="submitting || !externalId" @click="paySuccess">
-          Pay (success)
+          Оплатить (успех)
         </button>
         <button type="button" class="btn btn-outline" :disabled="submitting || !externalId" @click="payFail">
-          Pay (fail)
+          Оплатить (ошибка)
         </button>
       </div>
 
-      <button v-if="failed" type="button" class="retry btn btn-neutral" @click="goToRetry">Retry payment</button>
+      <button v-if="failed" type="button" class="retry btn btn-neutral" @click="goToRetry">Повторить оплату</button>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { postPaymentWebhook } from "../api/public";
+import { useAuthStore } from "../stores/auth";
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const submitting = ref(false);
 const paid = ref(false);
@@ -45,7 +48,7 @@ const providerId = computed(() => String(route.query.provider_id || "demo"));
 const externalId = computed(() => String(route.query.external_id || ""));
 const orderNumber = computed(() => String(route.query.order_number || ""));
 
-const isLoggedIn = computed(() => Boolean(localStorage.getItem("authToken")));
+const isLoggedIn = computed(() => Boolean(authStore.token));
 
 const orderLink = computed(() => {
   if (isLoggedIn.value) {
@@ -61,7 +64,7 @@ const orderLink = computed(() => {
 
 const sendWebhook = async (resultStatus: "succeeded" | "failed") => {
   if (!externalId.value) {
-    error.value = "external_id is required.";
+    error.value = "Требуется внешний идентификатор оплаты.";
     return;
   }
 
@@ -82,9 +85,9 @@ const sendWebhook = async (resultStatus: "succeeded" | "failed") => {
 
     failed.value = true;
     paid.value = false;
-    error.value = "Payment failed. You can retry.";
+    error.value = "Оплата не прошла. Вы можете повторить попытку.";
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to process payment webhook.";
+    error.value = err?.response?.data?.detail || "Не удалось обработать webhook оплаты.";
   } finally {
     submitting.value = false;
   }

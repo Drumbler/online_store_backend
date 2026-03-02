@@ -1,15 +1,19 @@
+"""Утилиты для разрешения активной корзины (гость/авторизованный пользователь)."""
+
 from .models import Cart
 from .models import CartItem
 from .models import CartStatus
 
 
 def _ensure_session_key(request) -> str:
+    """Гарантировать наличие session_key у запроса и вернуть его."""
     if not request.session.session_key:
         request.session.save()
     return request.session.session_key
 
 
 def _merge_cart_items(target_cart: Cart, source_cart: Cart) -> None:
+    """Слить позиции source-корзины в target-корзину без потери количеств и снапшотов."""
     existing = {item.product_id: item for item in target_cart.items.all()}
     for item in source_cart.items.all():
         current = existing.get(item.product_id)
@@ -42,6 +46,7 @@ def _merge_cart_items(target_cart: Cart, source_cart: Cart) -> None:
 
 
 def get_active_cart(request):
+    """Вернуть активную корзину с учетом гостевой сессии и авторизованного пользователя."""
     session_key = _ensure_session_key(request)
     if request.user.is_authenticated:
         user_cart = (
@@ -81,4 +86,5 @@ def get_active_cart(request):
 
 
 def get_or_create_cart(request) -> Cart:
+    """Совместимый алиас для получения активной корзины."""
     return get_active_cart(request)

@@ -1,40 +1,62 @@
 <template>
-  <section class="page">
-    <div class="card">
-      <h1>Admin Login</h1>
-      <p class="hint">Enter the admin API token to continue.</p>
+  <section class="page bg-app text-app">
+    <div class="card surface-card">
+      <h1>Вход в админ-панель</h1>
+      <p class="hint">Войдите под учётной записью администратора.</p>
       <form class="form" @submit.prevent="submit">
         <label class="field">
-          <span>Admin token</span>
-          <input v-model="token" type="password" required />
+          <span>Имя пользователя или эл. почта</span>
+          <input v-model="usernameOrEmail" type="text" required />
         </label>
-        <button type="submit">Sign in</button>
-        <p v-if="error" class="error">{{ error }}</p>
+        <label class="field">
+          <span>Пароль</span>
+          <input v-model="password" type="password" required />
+        </label>
+        <button type="submit" class="btn btn-primary" :disabled="loading">Войти</button>
+        <p v-if="error" class="state-box error">{{ error }}</p>
       </form>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useAdminAuthStore } from "../stores/adminAuth";
+import { useAuthStore } from "../stores/auth";
 
-const token = ref("");
+const usernameOrEmail = ref("");
+const password = ref("");
+const loading = ref(false);
 const error = ref<string | null>(null);
 const router = useRouter();
 const route = useRoute();
-const adminAuthStore = useAdminAuthStore();
+const authStore = useAuthStore();
 
 const submit = async () => {
-  if (!token.value.trim()) {
-    error.value = "Token is required.";
-    return;
-  }
+  loading.value = true;
   error.value = null;
-  adminAuthStore.setToken(token.value.trim());
-  const target = (route.query.redirect as string) || "/admin/products";
-  await router.push(target);
+  try {
+    await authStore.login({
+      username_or_email: usernameOrEmail.value.trim(),
+      password: password.value
+    });
+    const isAdmin = Boolean(
+      authStore.user?.is_admin || authStore.user?.is_staff || authStore.user?.is_superuser
+    );
+    if (!isAdmin) {
+      await authStore.logout();
+      error.value = "Доступ разрешен только администраторам.";
+      return;
+    }
+
+    const target = (route.query.redirect as string) || "/admin/products";
+    await router.push(target);
+  } catch (err: any) {
+    error.value = err?.response?.data?.detail || "Не удалось выполнить вход.";
+  } finally {
+    loading.value = false;
+  }
 };
 </script>
 
@@ -43,20 +65,16 @@ const submit = async () => {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at top, #f6efe1, #efe6d4);
   padding: 24px;
 }
 
 .card {
   width: min(420px, 100%);
-  background: #fff;
   padding: 24px;
-  border: 1px solid #e2d5be;
-  box-shadow: 0 18px 40px rgba(75, 60, 47, 0.1);
 }
 
 .hint {
-  color: #6f5f4c;
+  color: var(--muted);
   margin-bottom: 16px;
 }
 
@@ -72,8 +90,4 @@ const submit = async () => {
   gap: 6px;
 }
 
-.error {
-  color: #b11e1e;
-  margin: 0;
-}
 </style>

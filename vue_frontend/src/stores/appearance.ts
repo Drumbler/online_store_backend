@@ -1,3 +1,4 @@
+/** Pinia-store для публичных настроек темы/пресетов и баннеров витрины. */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
@@ -42,6 +43,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const error = ref<string | null>(null);
 
   const loadPublishedAppearance = async (force = false) => {
+    /** Загружает опубликованные настройки оформления магазина. */
     if (loading.value) {
       return;
     }
@@ -78,6 +80,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   const themeTokens = computed(() => buildThemeTokens(payload.value.theme_mode, payload.value.primary_color));
 
   const storefrontCssVars = computed<Record<string, string>>(() => ({
+    // Дублируем legacy `--store-*` и новые токены для совместимости компонентов.
     "--primary": themeTokens.value.primary,
     "--primary-contrast": themeTokens.value.primaryContrast,
     "--primary-soft": themeTokens.value.primarySoft,

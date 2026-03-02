@@ -1,3 +1,5 @@
+"""Настройки Django admin для кастомной модели пользователя."""
+
 from allauth.account.decorators import secure_admin_login
 from django.conf import settings
 from django.contrib import admin
@@ -17,6 +19,8 @@ if settings.DJANGO_ADMIN_FORCE_ALLAUTH:
 
 @admin.register(User)
 class UserAdmin(auth_admin.UserAdmin):
+    """Кастомизация полей и фильтров модели пользователя в админке."""
+
     form = UserAdminChangeForm
     add_form = UserAdminCreationForm
     fieldsets = (

@@ -1,3 +1,5 @@
+"""Адаптеры платежных и логистических интеграций магазина."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,11 +24,14 @@ YANDEX_NDD_INT32_MAX = 2_147_483_647
 
 @dataclass
 class BaseProviderAdapter:
+    """Базовые метаданные любого провайдера интеграции."""
+
     id: str
     title: str
     description: str = ""
 
     def fields_schema(self) -> list[dict]:
+        """Возвращает схему полей настройки провайдера."""
         return []
 
 
@@ -43,7 +48,10 @@ class ShippingProviderResponseError(Exception):
 
 
 class PaymentProviderAdapter(BaseProviderAdapter):
+    """Базовый интерфейс адаптера платежного провайдера."""
+
     def test_connection(self, config: IntegrationConfig) -> tuple[bool, str]:
+        """Проверяет доступность провайдера по текущей конфигурации."""
         raise NotImplementedError
 
     def create_payment(
@@ -52,11 +60,15 @@ class PaymentProviderAdapter(BaseProviderAdapter):
         config: IntegrationConfig,
         return_url: str,
     ) -> dict:
+        """Создает внешнюю платежную сессию для заказа."""
         raise NotImplementedError
 
 
 class ShippingProviderAdapter(BaseProviderAdapter):
+    """Базовый интерфейс адаптера службы доставки."""
+
     def test_connection(self, config: IntegrationConfig) -> tuple[bool, str]:
+        """Проверяет доступность службы доставки."""
         raise NotImplementedError
 
     def quote(
@@ -67,13 +79,17 @@ class ShippingProviderAdapter(BaseProviderAdapter):
         pickup_point_id: str | None,
         config: IntegrationConfig,
     ) -> dict:
+        """Рассчитывает стоимость и доступные офферы доставки."""
         raise NotImplementedError
 
     def get_pickup_points(self, city: str, query: str | None = None) -> list[dict]:
+        """Возвращает список доступных ПВЗ для выбранного города."""
         return []
 
 
 class DemoPaymentProviderAdapter(PaymentProviderAdapter):
+    """Демо-адаптер оплаты для локальной разработки и тестов."""
+
     id = "demo"
     title = "Demo payment"
     description = "Local demo adapter for payment integration wiring."
@@ -118,6 +134,8 @@ class DemoPaymentProviderAdapter(PaymentProviderAdapter):
 
 
 class DemoShippingProviderAdapter(ShippingProviderAdapter):
+    """Демо-адаптер доставки с локальными тестовыми ПВЗ."""
+
     id = "demo"
     title = "Demo shipping"
     description = "Local demo adapter for shipping integration wiring."
@@ -249,6 +267,8 @@ class DemoShippingProviderAdapter(ShippingProviderAdapter):
 
 
 class YandexNddShippingProviderAdapter(ShippingProviderAdapter):
+    """Адаптер расчета доставки через Yandex NDD API."""
+
     id = "yandex_ndd"
     title = "Yandex Delivery (NDD test)"
     description = "Yandex Other-day API integration for test contour (Moscow)."
@@ -658,8 +678,10 @@ _SHIPPING_PROVIDERS = {
 
 
 def get_payment_providers() -> dict[str, PaymentProviderAdapter]:
+    """Возвращает реестр доступных платежных провайдеров."""
     return _PAYMENT_PROVIDERS
 
 
 def get_shipping_providers() -> dict[str, ShippingProviderAdapter]:
+    """Возвращает реестр доступных провайдеров доставки."""
     return _SHIPPING_PROVIDERS

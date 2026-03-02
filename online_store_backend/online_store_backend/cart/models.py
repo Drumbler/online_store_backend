@@ -1,14 +1,20 @@
+"""Модели корзины пользователя и гостя."""
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
 
 class CartStatus(models.TextChoices):
+    """Статусы жизненного цикла корзины."""
+
     ACTIVE = "active", "Active"
     CHECKED_OUT = "checked_out", "Checked out"
 
 
 class Cart(models.Model):
+    """Корзина, привязанная к пользователю или гостевой сессии."""
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     session_key = models.CharField(max_length=40, null=True, blank=True, db_index=True)
     status = models.CharField(max_length=32, choices=CartStatus.choices, default=CartStatus.ACTIVE)
@@ -34,6 +40,8 @@ class Cart(models.Model):
 
 
 class CartItem(models.Model):
+    """Позиция товара в корзине со snapshot-данными цены и названия."""
+
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     product_id = models.CharField(max_length=255)
     product_title_snapshot = models.CharField(max_length=255, blank=True)

@@ -2,8 +2,8 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Integrations</h1>
-        <p>Configure payment and shipping providers.</p>
+        <h1>Интеграции</h1>
+        <p>Настройка провайдеров оплаты и доставки.</p>
       </div>
     </header>
 
@@ -12,14 +12,14 @@
 
     <div class="tabs">
       <button :class="{ active: activeKind === 'payment' }" :disabled="busy" @click="switchKind('payment')">
-        Payments
+        Оплата
       </button>
       <button :class="{ active: activeKind === 'shipping' }" :disabled="busy" @click="switchKind('shipping')">
-        Shipping
+        Доставка
       </button>
     </div>
 
-    <div v-if="loadingProviders" class="loading">Loading providers...</div>
+    <div v-if="loadingProviders" class="loading">Загрузка провайдеров...</div>
 
     <div v-else class="layout">
       <aside class="providers">
@@ -39,21 +39,21 @@
       <section class="panel" v-if="selectedProvider">
         <h2>{{ selectedProvider.title }}</h2>
 
-        <div v-if="loadingConfig" class="loading">Loading configuration...</div>
+        <div v-if="loadingConfig" class="loading">Загрузка конфигурации...</div>
 
         <form v-else class="form" @submit.prevent="saveConfig">
           <label class="field checkbox">
             <input v-model="form.enabled" type="checkbox" :disabled="busy" />
-            <span>Enabled</span>
+            <span>Включено</span>
           </label>
 
           <label class="field checkbox">
             <input v-model="form.is_sandbox" type="checkbox" :disabled="busy" />
-            <span>Sandbox mode</span>
+            <span>Песочница</span>
           </label>
 
           <label class="field">
-            <span>Display name</span>
+            <span>Название в витрине</span>
             <input v-model="form.display_name" type="text" :disabled="busy" />
           </label>
 
@@ -86,14 +86,14 @@
                 <div v-if="isStoredSecret(field) && !isReplacingSecret(field)" class="secret-row">
                   <span class="masked">******</span>
                   <button type="button" :disabled="busy" @click="setReplaceSecret(field, true)">
-                    Replace secret
+                    Заменить секрет
                   </button>
                 </div>
                 <div v-else class="secret-row">
                   <input
                     :value="getFieldValue(field)"
                     type="password"
-                    :placeholder="isStoredSecret(field) ? 'Leave empty to keep existing' : ''"
+                    :placeholder="isStoredSecret(field) ? 'Оставьте пустым, чтобы сохранить текущее значение' : ''"
                     :disabled="busy"
                     @input="setFieldValue(field, ($event.target as HTMLInputElement).value)"
                   />
@@ -103,7 +103,7 @@
                     :disabled="busy"
                     @click="cancelReplaceSecret(field)"
                   >
-                    Keep existing
+                    Оставить текущее
                   </button>
                 </div>
               </template>
@@ -132,8 +132,8 @@
           </div>
 
           <div class="actions">
-            <button type="submit" :disabled="busy">Save</button>
-            <button type="button" :disabled="busy || !configSaved" @click="testConnection">Test connection</button>
+            <button type="submit" :disabled="busy">Сохранить</button>
+            <button type="button" :disabled="busy || !configSaved" @click="testConnection">Проверить соединение</button>
           </div>
         </form>
       </section>
@@ -142,6 +142,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 
 import { adminApiClient } from "../api/adminClient";
@@ -291,7 +292,7 @@ const loadProviders = async () => {
       await loadConfig();
     }
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load integration providers.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить провайдеров интеграций.";
   } finally {
     loadingProviders.value = false;
   }
@@ -310,7 +311,7 @@ const loadConfig = async () => {
     );
     populateFormFromConfig(response.data as ConfigResponse);
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load integration config.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить конфигурацию интеграции.";
   } finally {
     loadingConfig.value = false;
   }
@@ -381,13 +382,13 @@ const saveConfig = async () => {
       requestPayload()
     );
     populateFormFromConfig(response.data as ConfigResponse);
-    showToast("Configuration saved.");
+    showToast("Конфигурация сохранена.");
   } catch (err: any) {
     const data = err?.response?.data;
     if (data && typeof data === "object") {
       applyValidationErrors(data);
     }
-    error.value = data?.detail || "Failed to save configuration.";
+    error.value = data?.detail || "Не удалось сохранить конфигурацию.";
     showToast(error.value, "error");
   } finally {
     saving.value = false;
@@ -405,10 +406,10 @@ const testConnection = async () => {
       `/admin/integrations/configs/${activeKind.value}/${selectedProviderId.value}/test/`
     );
     const ok = Boolean(response.data?.ok);
-    const message = response.data?.message || (ok ? "Connection OK" : "Connection failed");
+    const message = response.data?.message || (ok ? "Соединение успешно" : "Ошибка соединения");
     showToast(message, ok ? "ok" : "error");
   } catch (err: any) {
-    const message = err?.response?.data?.detail || "Failed to test connection.";
+    const message = err?.response?.data?.detail || "Не удалось проверить соединение.";
     error.value = message;
     showToast(message, "error");
   } finally {
@@ -524,7 +525,7 @@ onMounted(async () => {
   gap: 4px;
 }
 
-.field input,
+.field input:not([type="checkbox"]):not([type="radio"]),
 .field select {
   min-height: 34px;
 }

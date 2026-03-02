@@ -1,3 +1,5 @@
+"""Маршруты HTML-страниц профиля пользователя."""
+
 from django.urls import path
 
 from .views import user_detail_view

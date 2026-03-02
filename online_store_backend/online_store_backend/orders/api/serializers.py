@@ -1,3 +1,5 @@
+"""Сериализаторы API заказов и отзывов."""
+
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -8,6 +10,8 @@ from ..models import Review
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    """Read-only сериализатор позиции заказа."""
+
     class Meta:
         model = OrderItem
         fields = [
@@ -30,6 +34,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
+    """Основной сериализатор заказа для личного кабинета."""
+
     items = OrderItemSerializer(many=True, read_only=True)
     order_number = serializers.IntegerField(source="id", read_only=True)
     order_secret = serializers.CharField(read_only=True)
@@ -57,6 +63,7 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_subtotal_original(self, obj):
+        """Считает сумму позиций без учета скидок."""
         subtotal = sum(
             (item.unit_price_original * item.quantity for item in obj.items.all()),
             Decimal("0.00"),
@@ -64,6 +71,7 @@ class OrderSerializer(serializers.ModelSerializer):
         return subtotal
 
     def get_items_total(self, obj):
+        """Считает итог по позициям после скидок."""
         items_total = sum(
             (item.line_total for item in obj.items.all()),
             Decimal("0.00"),
@@ -71,11 +79,14 @@ class OrderSerializer(serializers.ModelSerializer):
         return items_total
 
     def get_discount_total(self, obj):
+        """Вычисляет абсолютную сумму скидки заказа."""
         subtotal_original = self.get_subtotal_original(obj)
         return subtotal_original - self.get_items_total(obj)
 
 
 class OrderLookupItemSerializer(serializers.ModelSerializer):
+    """Позиция заказа для публичного lookup-ответа."""
+
     title_snapshot = serializers.CharField(source="product_title_snapshot", read_only=True)
 
     class Meta:
@@ -94,6 +105,8 @@ class OrderLookupItemSerializer(serializers.ModelSerializer):
 
 
 class OrderLookupSerializer(serializers.ModelSerializer):
+    """Сериализатор публичного просмотра заказа по номеру и секрету."""
+
     order_number = serializers.IntegerField(source="id", read_only=True)
     order_secret = serializers.CharField(read_only=True)
     total_price = serializers.DecimalField(source="total", max_digits=10, decimal_places=2, read_only=True)
@@ -122,10 +135,12 @@ class OrderLookupSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_currency(self, obj):
+        """Определяет валюту по первой позиции заказа."""
         item = obj.items.first()
         return item.currency_snapshot if item else ""
 
     def get_subtotal_original(self, obj):
+        """Считает сумму позиций без учета скидок."""
         subtotal = sum(
             (item.unit_price_original * item.quantity for item in obj.items.all()),
             Decimal("0.00"),
@@ -133,6 +148,7 @@ class OrderLookupSerializer(serializers.ModelSerializer):
         return subtotal
 
     def get_items_total(self, obj):
+        """Считает итог по позициям после скидок."""
         items_total = sum(
             (item.line_total for item in obj.items.all()),
             Decimal("0.00"),
@@ -140,11 +156,14 @@ class OrderLookupSerializer(serializers.ModelSerializer):
         return items_total
 
     def get_discount_total(self, obj):
+        """Вычисляет абсолютную сумму скидки заказа."""
         subtotal_original = self.get_subtotal_original(obj)
         return subtotal_original - self.get_items_total(obj)
 
 
 class ReviewSerializer(serializers.ModelSerializer):
+    """Read-only сериализатор опубликованного отзыва."""
+
     class Meta:
         model = Review
         fields = [
@@ -160,6 +179,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 class ReviewCreateSerializer(serializers.Serializer):
+    """Входные данные для создания отзыва после покупки."""
+
     review_token = serializers.CharField()
     rating = serializers.IntegerField(min_value=1, max_value=5)
     pros = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -169,6 +190,8 @@ class ReviewCreateSerializer(serializers.Serializer):
 
 
 class EligibleReviewProductSerializer(serializers.Serializer):
+    """Товар, доступный для оставления отзыва пользователем."""
+
     product_id = serializers.CharField()
     title = serializers.CharField(allow_blank=True)
     image_url = serializers.CharField(allow_blank=True, allow_null=True)

@@ -1,3 +1,4 @@
+/** Pinia-store корзины: загрузка, изменение количества и удаление позиций. */
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
@@ -32,6 +33,7 @@ export type Cart = {
 };
 
 const normalizeCartItems = (raw: any): CartItem[] => {
+  /** Приводит неизвестный payload корзины к массиву позиций. */
   if (!raw || !Array.isArray(raw.items)) {
     return [];
   }
@@ -45,10 +47,12 @@ export const useCartStore = defineStore("cart", () => {
   const error = ref<string | null>(null);
 
   const cartCount = computed(() =>
+    // Количество единиц товара, а не количество строк корзины.
     items.value.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
   );
 
   const fetchCart = async () => {
+    /** Загружает текущее состояние корзины. */
     loading.value = true;
     error.value = null;
     try {
@@ -63,6 +67,7 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const addToCart = async (productId: string, qty = 1) => {
+    /** Добавляет товар в корзину и перечитывает ее состояние. */
     loading.value = true;
     error.value = null;
     try {
@@ -75,6 +80,7 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const setQty = async (itemPk: string | number, qty: number) => {
+    /** Обновляет количество позиции и перечитывает корзину. */
     loading.value = true;
     error.value = null;
     try {
@@ -87,6 +93,7 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const removeItem = async (itemPk: string | number) => {
+    /** Удаляет позицию корзины и перечитывает состояние. */
     loading.value = true;
     error.value = null;
     try {

@@ -1,3 +1,5 @@
+"""Signals для автоматической инициализации настроек внешнего вида."""
+
 import logging
 
 from django.db.models.signals import post_migrate
@@ -10,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_migrate)
 def init_shop_appearance_defaults(sender, **kwargs):
+    """Создает черновые/публичные настройки внешнего вида после миграций."""
     if sender.label != "appearance":
         return
     try:

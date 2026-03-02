@@ -1,3 +1,5 @@
+"""Сервисный слой управления оформлением витрины магазина."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -23,6 +25,7 @@ BLOCK_TYPES = (
 
 
 def _default_blocks(visible_overrides: dict[str, bool] | None = None):
+    """Сформировать дефолтный порядок и видимость блоков карточек."""
     overrides = visible_overrides or {}
     result = []
     for index, block_type in enumerate(BLOCK_TYPES):
@@ -64,11 +67,13 @@ DEFAULT_PRESET_CONFIGS = {
 
 
 def default_preset_config(preset_type: str):
+    """Вернуть копию стандартной конфигурации пресета по его типу."""
     config = DEFAULT_PRESET_CONFIGS.get(preset_type) or DEFAULT_PRESET_CONFIGS[PresetType.CATALOG_CARD]
     return deepcopy(config)
 
 
 def normalize_preset_config(raw_config, preset_type: str):
+    """Нормализовать конфигурацию пресета к допустимым значениям и порядку блоков."""
     config = raw_config if isinstance(raw_config, dict) else {}
 
     layout_mode = config.get("layout_mode")
@@ -125,6 +130,7 @@ def normalize_preset_config(raw_config, preset_type: str):
 
 
 def _settings_defaults():
+    """Дефолтные значения настроек оформления."""
     return {
         "theme_mode": ThemeMode.LIGHT,
         "primary_color": "#ff6b00",
@@ -135,6 +141,7 @@ def _settings_defaults():
 
 
 def _create_stock_presets(scope: bool):
+    """Создать набор штатных пресетов для draft/published-области."""
     presets = {}
     names = {
         PresetType.CATALOG_CARD: "Catalog card (stock)",
@@ -153,6 +160,7 @@ def _create_stock_presets(scope: bool):
 
 
 def _ensure_scope_defaults(settings_obj: ShopAppearanceSettings):
+    """Проверить и восстановить обязательные пресеты/ссылки внутри одной области."""
     scope = bool(settings_obj.is_published)
     presets_queryset = AppearancePreset.objects.filter(is_published=scope)
 
@@ -217,6 +225,7 @@ def _ensure_scope_defaults(settings_obj: ShopAppearanceSettings):
 
 @transaction.atomic
 def ensure_shop_appearance_initialized():
+    """Инициализировать draft/live-настройки и базовые пресеты при первом запуске."""
     draft, _ = ShopAppearanceSettings.objects.get_or_create(is_published=False, defaults=_settings_defaults())
     published, _ = ShopAppearanceSettings.objects.get_or_create(is_published=True, defaults=_settings_defaults())
 
@@ -226,6 +235,7 @@ def ensure_shop_appearance_initialized():
 
 
 def get_scope_settings(is_published: bool):
+    """Получить настройки нужной области (`draft` или `published`)."""
     ensure_shop_appearance_initialized()
     return ShopAppearanceSettings.objects.select_related(
         "active_catalog_preset",
@@ -235,6 +245,7 @@ def get_scope_settings(is_published: bool):
 
 
 def serialize_preset(preset: AppearancePreset | None):
+    """Сериализовать пресет в API-формат."""
     if preset is None:
         return None
     return {
@@ -246,6 +257,7 @@ def serialize_preset(preset: AppearancePreset | None):
 
 
 def serialize_banner(banner: AppearanceBanner):
+    """Сериализовать баннер в API-формат."""
     return {
         "id": banner.id,
         "image_url": banner.image_url,
@@ -257,8 +269,22 @@ def serialize_banner(banner: AppearanceBanner):
     }
 
 
-def serialize_settings(settings_obj: ShopAppearanceSettings):
-    logo_url = settings_obj.logo.url if settings_obj.logo else None
+def _build_logo_url(settings_obj: ShopAppearanceSettings, request=None):
+    """Построить URL логотипа (абсолютный при наличии request)."""
+    if not settings_obj.logo:
+        return None
+    try:
+        logo_url = settings_obj.logo.url
+    except ValueError:
+        return None
+    if request is not None:
+        return request.build_absolute_uri(logo_url)
+    return logo_url
+
+
+def serialize_settings(settings_obj: ShopAppearanceSettings, request=None):
+    """Сериализовать настройки оформления для админ-редактора."""
+    logo_url = _build_logo_url(settings_obj, request=request)
     return {
         "id": settings_obj.id,
         "theme_mode": settings_obj.theme_mode,
@@ -273,9 +299,10 @@ def serialize_settings(settings_obj: ShopAppearanceSettings):
     }
 
 
-def public_appearance_payload():
+def public_appearance_payload(request=None):
+    """Собрать опубликованные настройки оформления для публичной витрины."""
     settings_obj = get_scope_settings(is_published=True)
-    logo_url = settings_obj.logo.url if settings_obj.logo else None
+    logo_url = _build_logo_url(settings_obj, request=request)
     banners = (
         AppearanceBanner.objects.filter(is_published=True, is_enabled=True)
         .order_by("placement", "after_row", "sort_order", "id")
@@ -297,6 +324,7 @@ def public_appearance_payload():
 
 
 def _copy_scope(source_is_published: bool, target_is_published: bool):
+    """Скопировать настройки/пресеты/баннеры между draft и published областями."""
     source_settings = get_scope_settings(source_is_published)
     target_settings = get_scope_settings(target_is_published)
 
@@ -362,11 +390,13 @@ def _copy_scope(source_is_published: bool, target_is_published: bool):
 
 @transaction.atomic
 def publish_draft_to_live():
+    """Опубликовать текущий draft в live-область."""
     ensure_shop_appearance_initialized()
     return _copy_scope(source_is_published=False, target_is_published=True)
 
 
 @transaction.atomic
 def reset_draft_from_live():
+    """Сбросить draft, скопировав туда актуальную live-конфигурацию."""
     ensure_shop_appearance_initialized()
     return _copy_scope(source_is_published=True, target_is_published=False)

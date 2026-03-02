@@ -1,3 +1,5 @@
+"""API оформления заказа: доставка, превью расчета и подтверждение checkout."""
+
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -31,6 +33,8 @@ ALLOWED_SHIPPING_TYPES = {"pickup", "courier"}
 
 
 class CheckoutRequestSerializer(serializers.Serializer):
+    """Валидатор входных данных полного шага checkout (preview/confirm)."""
+
     address = serializers.DictField()
     shipping_provider = serializers.CharField()
     shipping_type = serializers.CharField()
@@ -39,6 +43,8 @@ class CheckoutRequestSerializer(serializers.Serializer):
 
 
 class ShippingQuoteRequestSerializer(serializers.Serializer):
+    """Валидатор запроса тарифа доставки по выбранному провайдеру."""
+
     address = serializers.DictField()
     shipping_type = serializers.CharField()
     pickup_point_id = serializers.CharField(required=False, allow_blank=False)
@@ -46,9 +52,12 @@ class ShippingQuoteRequestSerializer(serializers.Serializer):
 
 
 class ShippingPickupPointsView(APIView):
+    """Вернуть список пунктов выдачи для выбранного провайдера доставки."""
+
     permission_classes = [AllowAny]
 
     def get(self, request, provider_id):
+        """Получить ПВЗ по городу и строке поиска."""
         city = (request.query_params.get("city") or "").strip()
         query = (request.query_params.get("q") or "").strip()
         provider = get_shipping_providers().get(provider_id)
@@ -76,6 +85,7 @@ class ShippingPickupPointsView(APIView):
 
 
 def _validate_address(address, shipping_type: str):
+    """Проверить обязательные поля адреса в зависимости от типа доставки."""
     if not isinstance(address, dict):
         raise serializers.ValidationError({"address": ["Address must be an object."]})
 
@@ -91,6 +101,7 @@ def _validate_address(address, shipping_type: str):
 
 
 def _validate_shipping_choice(shipping_type: str, pickup_point_id: str | None):
+    """Проверить корректность комбинации shipping_type и pickup_point_id."""
     if shipping_type not in ALLOWED_SHIPPING_TYPES:
         raise serializers.ValidationError({"shipping_type": ["Invalid shipping type."]})
     if shipping_type == "pickup" and not pickup_point_id:
@@ -98,6 +109,7 @@ def _validate_shipping_choice(shipping_type: str, pickup_point_id: str | None):
 
 
 def _get_shipping_adapter_and_config(provider_id: str):
+    """Вернуть адаптер доставки и его активную конфигурацию интеграции."""
     adapter = get_shipping_providers().get(provider_id)
     if not adapter:
         raise serializers.ValidationError({"detail": ["Shipping provider not found."]})
@@ -114,6 +126,7 @@ def _get_shipping_adapter_and_config(provider_id: str):
 
 
 def _build_priced_items(cart_items):
+    """Переоценить позиции корзины по актуальному каталогу и посчитать итог товаров."""
     priced_items = []
     items_total = Decimal("0.00")
     currency = "RUB"
@@ -161,6 +174,7 @@ def _shipping_quote(
     items_total: Decimal,
     items_count: int,
 ):
+    """Получить и нормализовать стоимость доставки от внешнего провайдера."""
     adapter, config = _get_shipping_adapter_and_config(provider_id)
     quote = adapter.quote(
         order_data={"items_total": str(items_total), "items_count": int(items_count or 1)},
@@ -181,9 +195,12 @@ def _shipping_quote(
 
 
 class CheckoutPreviewView(APIView):
+    """Шаг предварительного расчета заказа без создания сущности Order."""
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Проверить входные данные и вернуть суммы: товары, доставка, итог."""
         serializer = CheckoutRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -241,9 +258,12 @@ class CheckoutPreviewView(APIView):
 
 
 class CheckoutConfirmView(APIView):
+    """Подтверждение заказа: создание Order/OrderItem и закрытие активной корзины."""
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Создать заказ после успешной валидации и расчета доставки."""
         serializer = CheckoutRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -344,9 +364,12 @@ class CheckoutConfirmView(APIView):
 
 
 class CheckoutShippingMethodsView(APIView):
+    """Выдать список доступных способов доставки из активных интеграций."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Вернуть провайдеров доставки, доступных для checkout."""
         providers = get_shipping_providers()
         enabled_configs = IntegrationConfig.objects.filter(kind=IntegrationKind.SHIPPING, enabled=True)
 
@@ -366,9 +389,12 @@ class CheckoutShippingMethodsView(APIView):
 
 
 class ShippingQuoteView(APIView):
+    """Рассчитать предложения доставки (offers) для текущей корзины."""
+
     permission_classes = [AllowAny]
 
     def post(self, request, provider_id):
+        """Запросить у провайдера доставки тарифы по адресу и типу доставки."""
         serializer = ShippingQuoteRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

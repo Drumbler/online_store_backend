@@ -1,3 +1,5 @@
+"""Сериализаторы для API корзины и расчетов по позициям."""
+
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -6,6 +8,8 @@ from .models import CartItem
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    """Read-only представление позиции корзины."""
+
     class Meta:
         model = CartItem
         fields = [
@@ -23,15 +27,21 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class CartItemCreateSerializer(serializers.Serializer):
+    """Входные данные для добавления товара в корзину."""
+
     product_id = serializers.CharField()
     quantity = serializers.IntegerField(min_value=1)
 
 
 class CartItemUpdateSerializer(serializers.Serializer):
+    """Входные данные для изменения количества в позиции корзины."""
+
     quantity = serializers.IntegerField(min_value=1)
 
 
 class CartProductSerializer(serializers.Serializer):
+    """Минимальная информация о товаре для ответа корзины."""
+
     id = serializers.CharField()
     title = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     slug = serializers.CharField(allow_blank=True, allow_null=True, required=False)
@@ -41,6 +51,8 @@ class CartProductSerializer(serializers.Serializer):
 
 
 class CartPricingItemSerializer(serializers.Serializer):
+    """Расчетная позиция корзины с ценой, скидкой и итоговой суммой."""
+
     id = serializers.IntegerField()
     product = CartProductSerializer()
     quantity = serializers.IntegerField(min_value=1)
@@ -51,6 +63,8 @@ class CartPricingItemSerializer(serializers.Serializer):
 
 
 class CartSerializer(serializers.Serializer):
+    """Полный ответ API корзины с итоговыми суммами."""
+
     id = serializers.IntegerField()
     items = CartPricingItemSerializer(many=True)
     created_at = serializers.DateTimeField()
@@ -63,4 +77,5 @@ class CartSerializer(serializers.Serializer):
     total_price = serializers.SerializerMethodField()
 
     def get_total_price(self, obj: dict):
+        """Сохраняет обратную совместимость поля `total_price`."""
         return obj.get("total", Decimal("0.00"))

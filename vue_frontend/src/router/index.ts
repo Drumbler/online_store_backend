@@ -1,3 +1,9 @@
+/**
+ * Маршрутизация витрины и админки.
+ * Guard проверяет:
+ * - авторизацию для приватных страниц;
+ * - права администратора для `/admin/*`.
+ */
 import { createRouter, createWebHistory } from "vue-router";
 
 import CatalogPage from "../pages/CatalogPage.vue";
@@ -32,7 +38,7 @@ const router = createRouter({
     { path: "/p/:slug", name: "product", component: ProductPage, props: true },
     { path: "/cart", name: "cart", component: CartPage },
     { path: "/checkout", name: "checkout", component: CheckoutPage },
-    { path: "/orders", name: "orders", component: OrdersPage },
+    { path: "/orders", name: "orders", component: OrdersPage, meta: { requiresAuth: true } },
     { path: "/orders/find", name: "orders-find", component: OrdersPage },
     { path: "/pay", name: "pay", component: PayPage },
     { path: "/demo-pay", name: "demo-pay", component: DemoPayPage },
@@ -65,17 +71,40 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  /** Pinia-store авторизации используется как единый источник прав доступа. */
   const authStore = useAuthStore();
+  const isAdminLoginRoute = to.path === "/admin/login";
+  const isAdminAreaRoute = to.path.startsWith("/admin") && !isAdminLoginRoute;
+
+  const ensureUserLoaded = async () => {
+    // Подгружаем профиль только если есть токен и объект пользователя еще не загружен.
+    if (!authStore.user && authStore.token) {
+      await authStore.fetchMe();
+    }
+  };
+
   if (to.meta.requiresAuth) {
     if (!authStore.token) {
       return { path: "/login", query: { redirect: to.fullPath } };
     }
-    if (!authStore.user) {
-      await authStore.fetchMe();
+    await ensureUserLoaded();
+    if (!authStore.token) {
+      return { path: "/login", query: { redirect: to.fullPath } };
     }
   }
 
-  if (!to.path.startsWith("/admin")) {
+  if (isAdminLoginRoute) {
+    if (!authStore.token) {
+      return true;
+    }
+    await ensureUserLoaded();
+    const isAdmin = Boolean(
+      authStore.user?.is_admin || authStore.user?.is_staff || authStore.user?.is_superuser
+    );
+    return isAdmin ? { path: "/admin/products" } : { path: "/" };
+  }
+
+  if (!isAdminAreaRoute) {
     return true;
   }
 
@@ -83,8 +112,9 @@ router.beforeEach(async (to) => {
     return { path: "/login", query: { redirect: to.fullPath } };
   }
 
-  if (!authStore.user) {
-    await authStore.fetchMe();
+  await ensureUserLoaded();
+  if (!authStore.token) {
+    return { path: "/login", query: { redirect: to.fullPath } };
   }
 
   const isAdmin = Boolean(

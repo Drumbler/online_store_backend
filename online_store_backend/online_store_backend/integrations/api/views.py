@@ -1,3 +1,5 @@
+"""Админ API для управления интеграциями оплаты и доставки."""
+
 from __future__ import annotations
 
 from django.http import Http404
@@ -14,6 +16,8 @@ from ..providers import get_shipping_providers
 
 
 class IntegrationConfigUpsertSerializer(serializers.Serializer):
+    """Валидатор обновления конфигурации интеграции."""
+
     enabled = serializers.BooleanField(required=False)
     is_sandbox = serializers.BooleanField(required=False)
     display_name = serializers.CharField(required=False, allow_blank=True)
@@ -22,6 +26,7 @@ class IntegrationConfigUpsertSerializer(serializers.Serializer):
 
 
 def _providers_by_kind(kind: str):
+    """Вернуть реестр провайдеров по типу интеграции."""
     if kind == IntegrationKind.PAYMENT:
         return get_payment_providers()
     if kind == IntegrationKind.SHIPPING:
@@ -30,6 +35,7 @@ def _providers_by_kind(kind: str):
 
 
 def _get_provider(kind: str, provider_id: str):
+    """Найти конкретный провайдер в соответствующем реестре."""
     providers = _providers_by_kind(kind)
     provider = providers.get(provider_id)
     if not provider:
@@ -38,6 +44,7 @@ def _get_provider(kind: str, provider_id: str):
 
 
 def _password_fields_map(fields_schema: list[dict]):
+    """Построить карту секретных полей (credentials/settings) по schema провайдера."""
     result = {"credentials": set(), "settings": set()}
     for field in fields_schema:
         if field.get("type") != "password":
@@ -50,6 +57,7 @@ def _password_fields_map(fields_schema: list[dict]):
 
 
 def _masked_payload(kind: str, provider, config: IntegrationConfig | None):
+    """Подготовить payload конфигурации, скрывая секретные значения."""
     fields_schema = provider.fields_schema()
     password_fields = _password_fields_map(fields_schema)
     raw_credentials = (config.credentials if config else {}) or {}
@@ -78,6 +86,7 @@ def _masked_payload(kind: str, provider, config: IntegrationConfig | None):
 
 
 def _apply_secret_placeholders(existing: dict, incoming: dict, password_fields: set[str]):
+    """Слить входные поля с текущими, сохраняя секреты при плейсхолдере `******`."""
     merged = dict(existing)
     for key, value in incoming.items():
         if key in password_fields and value == "******":
@@ -88,6 +97,7 @@ def _apply_secret_placeholders(existing: dict, incoming: dict, password_fields: 
 
 
 def _validate_required_fields(enabled: bool, fields_schema: list[dict], credentials: dict, settings: dict):
+    """Проверить обязательные поля конфигурации только для включенной интеграции."""
     if not enabled:
         return
 
@@ -108,9 +118,12 @@ def _validate_required_fields(enabled: bool, fields_schema: list[dict], credenti
 
 
 class AdminIntegrationsProvidersView(APIView):
+    """Справочник всех доступных провайдеров интеграций."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):
+        """Вернуть описание провайдеров оплаты и доставки."""
         payment = [
             {
                 "id": adapter.id,
@@ -133,15 +146,19 @@ class AdminIntegrationsProvidersView(APIView):
 
 
 class AdminIntegrationConfigView(APIView):
+    """Получение и обновление конфигурации конкретной интеграции."""
+
     permission_classes = [IsAdminUser]
 
     def get(self, request, kind, provider_id):
+        """Прочитать текущую конфигурацию интеграции с маскированием секретов."""
         provider = _get_provider(kind, provider_id)
         config = IntegrationConfig.objects.filter(kind=kind, provider_id=provider_id).first()
         payload = _masked_payload(kind, provider, config)
         return Response(payload, status=status.HTTP_200_OK)
 
     def put(self, request, kind, provider_id):
+        """Создать/обновить конфигурацию интеграции и провалидировать обязательные поля."""
         provider = _get_provider(kind, provider_id)
         serializer = IntegrationConfigUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -196,9 +213,12 @@ class AdminIntegrationConfigView(APIView):
 
 
 class AdminIntegrationTestConnectionView(APIView):
+    """Запуск теста подключения для выбранного провайдера интеграции."""
+
     permission_classes = [IsAdminUser]
 
     def post(self, request, kind, provider_id):
+        """Проверить доступность внешнего провайдера с текущей конфигурацией."""
         provider = _get_provider(kind, provider_id)
         config = IntegrationConfig.objects.filter(kind=kind, provider_id=provider_id).first()
         if config is None:

@@ -1,17 +1,17 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Sign in</h1>
+    <h1>Вход</h1>
 
     <form class="form" @submit.prevent="submit">
       <label class="field">
-        <span>Username or email</span>
+        <span>Имя пользователя или эл. почта</span>
         <input v-model="usernameOrEmail" type="text" required />
       </label>
       <label class="field">
-        <span>Password</span>
+        <span>Пароль</span>
         <input v-model="password" type="password" required />
       </label>
-      <button type="submit" class="btn btn-primary" :disabled="loading">Login</button>
+      <button type="submit" class="btn btn-primary" :disabled="loading">Войти</button>
     </form>
 
     <p v-if="error" class="state-box error">{{ error }}</p>
@@ -19,12 +19,15 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { ref } from "vue";
+import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 const usernameOrEmail = ref("");
 const password = ref("");
@@ -39,9 +42,10 @@ const submit = async () => {
       username_or_email: usernameOrEmail.value,
       password: password.value
     });
-    await router.push("/");
+    const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
+    await router.push(redirect);
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Login failed.";
+    error.value = err?.response?.data?.detail || "Не удалось выполнить вход.";
   } finally {
     loading.value = false;
   }

@@ -1,17 +1,17 @@
 <template>
-  <div class="admin">
+  <div class="admin bg-app text-app">
     <header class="admin-nav">
       <nav class="admin-links">
-        <RouterLink to="/admin/products">Products</RouterLink>
-        <RouterLink to="/admin/categories">Categories</RouterLink>
-        <RouterLink to="/admin/orders">Orders</RouterLink>
-        <RouterLink to="/admin/reviews">Reviews</RouterLink>
-        <RouterLink to="/admin/integrations">Integrations</RouterLink>
-        <RouterLink to="/admin/appearance">Appearance</RouterLink>
-        <RouterLink to="/admin/reports">Reports</RouterLink>
-        <RouterLink to="/admin/users">Users</RouterLink>
-        <RouterLink to="/">Back to shop</RouterLink>
-        <button class="link-button" type="button" @click="handleLogout">Logout</button>
+        <RouterLink to="/admin/products">Товары</RouterLink>
+        <RouterLink to="/admin/categories">Категории</RouterLink>
+        <RouterLink to="/admin/orders">Заказы</RouterLink>
+        <RouterLink to="/admin/reviews">Отзывы</RouterLink>
+        <RouterLink to="/admin/integrations">Интеграции</RouterLink>
+        <RouterLink to="/admin/appearance">Оформление</RouterLink>
+        <RouterLink to="/admin/reports">Отчеты</RouterLink>
+        <RouterLink to="/admin/users">Пользователи</RouterLink>
+        <RouterLink to="/">В магазин</RouterLink>
+        <button class="link-button" type="button" @click="handleLogout">Выйти</button>
       </nav>
     </header>
     <section class="admin-content">
@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
@@ -36,13 +37,14 @@ const handleLogout = async () => {
 <style scoped>
 .admin {
   min-height: 100vh;
-  background: #f8f4ec;
+  background: var(--bg);
 }
 
 .admin-nav {
   padding: 16px;
-  border-bottom: 1px solid #d6cbb8;
-  background: #f0e7d7;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .admin-links {
@@ -53,12 +55,13 @@ const handleLogout = async () => {
 }
 
 .admin-links a {
-  color: #4b3c2f;
+  color: var(--text);
   text-decoration: none;
   font-weight: 600;
 }
 
 .admin-links a.router-link-active {
+  color: var(--primary);
   text-decoration: underline;
 }
 
@@ -66,7 +69,7 @@ const handleLogout = async () => {
   background: none;
   border: none;
   padding: 0;
-  color: #4b3c2f;
+  color: var(--text);
   cursor: pointer;
   font: inherit;
   font-weight: 600;

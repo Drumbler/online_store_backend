@@ -1,8 +1,8 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Categories</h1>
+    <h1>Категории</h1>
 
-    <div v-if="catalogStore.loading" class="state-box">Loading...</div>
+    <div v-if="catalogStore.loading" class="state-box">Загрузка...</div>
     <div v-else-if="catalogStore.error" class="state-box error">{{ catalogStore.error }}</div>
 
     <ul v-else class="list">
@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useCatalogStore } from "../stores/catalog";

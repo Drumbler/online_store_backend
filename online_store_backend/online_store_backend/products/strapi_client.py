@@ -1,3 +1,5 @@
+"""Клиент для взаимодействия с Strapi Catalog API."""
+
 import logging
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urljoin
@@ -9,15 +11,21 @@ logger = logging.getLogger(__name__)
 
 
 class StrapiUnavailableError(Exception):
+    """Ошибка недоступности Strapi или некорректного ответа."""
+
     def __init__(self, message="Strapi unavailable"):
         super().__init__(message)
 
 
 class StrapiNotFoundError(Exception):
+    """Ошибка отсутствия сущности в Strapi."""
+
     pass
 
 
 class StrapiRequestError(Exception):
+    """Ошибка HTTP-запроса к Strapi с сохранением статуса и тела ответа."""
+
     def __init__(self, status_code, response_text):
         super().__init__(f"Strapi request failed with status {status_code}")
         self.status_code = status_code
@@ -25,6 +33,7 @@ class StrapiRequestError(Exception):
 
 
 def _format_price(value) -> str:
+    """Нормализует цену к строке с двумя знаками после запятой."""
     if value is None:
         return "0.00"
     try:
@@ -36,6 +45,7 @@ def _format_price(value) -> str:
 
 
 def _normalize_discount_percent(value) -> int:
+    """Приводит скидку к целому значению в диапазоне 0..100."""
     if value is None:
         return 0
     try:
@@ -46,6 +56,7 @@ def _normalize_discount_percent(value) -> int:
 
 
 def _apply_discount(price: str, discount_percent: int) -> str:
+    """Применяет процентную скидку к цене."""
     if discount_percent <= 0:
         return price
     try:
@@ -59,6 +70,7 @@ def _apply_discount(price: str, discount_percent: int) -> str:
 
 
 def _absolute_media_url(url: str) -> str:
+    """Преобразует относительный URL медиа в абсолютный."""
     if url.startswith("http://") or url.startswith("https://"):
         return url
     base = settings.STRAPI_PUBLIC_URL.rstrip("/") + "/"
@@ -66,6 +78,7 @@ def _absolute_media_url(url: str) -> str:
 
 
 def _extract_attributes(item):
+    """Извлекает `attributes` из формата ответа Strapi."""
     if not isinstance(item, dict):
         return {}
     if "attributes" in item and isinstance(item["attributes"], dict):
@@ -78,59 +91,68 @@ def _extract_attributes(item):
     return item
 
 
-def _extract_image_url(image):
+def _iter_media_attributes(image):
+    """Нормализует медиа-данные к списку словарей атрибутов."""
     if not image:
-        return None
+        return []
     if isinstance(image, str):
-        return _absolute_media_url(image)
-    if isinstance(image, list):
-        if not image:
-            return None
-        return _extract_image_url(image[0])
-    if not isinstance(image, dict):
-        return None
-    if "data" in image:
+        return [{"url": image}]
+    if isinstance(image, dict) and "data" in image:
         image = image["data"]
-        if image is None:
-            return None
-    attrs = _extract_attributes(image)
-    if not attrs:
-        return None
-    url = attrs.get("url")
-    if not url:
-        return None
-    return _absolute_media_url(url)
+    if image is None:
+        return []
+    items = image if isinstance(image, list) else [image]
+    normalized = []
+    for item in items:
+        if isinstance(item, str):
+            normalized.append({"url": item})
+            continue
+        attrs = _extract_attributes(item)
+        if attrs:
+            normalized.append(attrs)
+    return normalized
+
+
+def _extract_gallery_urls(image):
+    """Возвращает уникальные абсолютные URL изображений галереи."""
+    urls = []
+    seen = set()
+    for attrs in _iter_media_attributes(image):
+        url = attrs.get("url")
+        if not url:
+            continue
+        absolute = _absolute_media_url(url)
+        if absolute in seen:
+            continue
+        seen.add(absolute)
+        urls.append(absolute)
+    return urls
+
+
+def _extract_image_url(image):
+    """Возвращает URL основного изображения."""
+    gallery = _extract_gallery_urls(image)
+    return gallery[0] if gallery else None
 
 
 def _extract_thumbnail_url(image):
-    if not image:
-        return None
-    if isinstance(image, list):
-        if not image:
-            return None
-        return _extract_thumbnail_url(image[0])
-    if not isinstance(image, dict):
-        return None
-    if "data" in image:
-        image = image["data"]
-        if image is None:
-            return None
-    attrs = _extract_attributes(image)
-    if not attrs:
-        return None
-    formats = attrs.get("formats") or {}
-    if not isinstance(formats, dict):
-        return None
-    thumbnail = formats.get("thumbnail")
-    if not isinstance(thumbnail, dict):
-        return None
-    url = thumbnail.get("url")
-    if not url:
-        return None
-    return _absolute_media_url(url)
+    """Возвращает URL thumbnail-версии изображения, если она доступна."""
+    for attrs in _iter_media_attributes(image):
+        formats = attrs.get("formats") or {}
+        if not isinstance(formats, dict):
+            continue
+        thumbnail = formats.get("thumbnail")
+        if not isinstance(thumbnail, dict):
+            continue
+        url = thumbnail.get("url")
+        if not url:
+            continue
+        return _absolute_media_url(url)
+    return None
 
 
 def _normalize_category(category):
+    """Нормализует категорию к единому публичному формату."""
     if not category:
         return None
     if isinstance(category, dict) and "data" in category:
@@ -151,6 +173,7 @@ def _normalize_category(category):
 
 
 def _normalize_product(item):
+    """Нормализует товар Strapi к публичному контракту API."""
     attrs = _extract_attributes(item)
     document_id = attrs.get("documentId")
     if not document_id and isinstance(item, dict):
@@ -161,6 +184,7 @@ def _normalize_product(item):
     discount_percent = _normalize_discount_percent(attrs.get("discount_percent"))
     price = _format_price(attrs.get("price"))
     discounted_price = _apply_discount(price, discount_percent) if discount_percent > 0 else None
+    gallery_urls = _extract_gallery_urls(attrs.get("image"))
     return {
         "id": str(document_id),
         "slug": attrs.get("slug"),
@@ -170,6 +194,7 @@ def _normalize_product(item):
         "currency": "RUB",
         "image_url": _extract_image_url(attrs.get("image")),
         "thumbnail_url": _extract_thumbnail_url(attrs.get("image")),
+        "gallery_urls": gallery_urls,
         "category": _normalize_category(attrs.get("category")),
         "discount_percent": discount_percent,
         "discounted_price": discounted_price,
@@ -177,6 +202,7 @@ def _normalize_product(item):
 
 
 def _normalize_category_admin(item):
+    """Нормализует категорию к формату админского API."""
     attrs = _extract_attributes(item)
     document_id = attrs.get("documentId")
     if not document_id and isinstance(item, dict):
@@ -192,6 +218,7 @@ def _normalize_category_admin(item):
 
 
 def _normalize_product_admin(item):
+    """Нормализует товар к формату админского API."""
     attrs = _extract_attributes(item)
     document_id = attrs.get("documentId")
     if not document_id and isinstance(item, dict):
@@ -213,6 +240,7 @@ def _normalize_product_admin(item):
 
 
 def _get_read_token():
+    """Возвращает read-only API токен Strapi."""
     token = settings.STRAPI_READ_API_TOKEN
     if not token:
         logger.error("STRAPI_READ_API_TOKEN is not configured.")
@@ -221,6 +249,7 @@ def _get_read_token():
 
 
 def _get_admin_token():
+    """Возвращает admin API токен Strapi."""
     token = settings.STRAPI_ADMIN_API_TOKEN
     if not token:
         logger.error("STRAPI_ADMIN_API_TOKEN is not configured.")
@@ -229,6 +258,7 @@ def _get_admin_token():
 
 
 def _strapi_request(method, path, *, params=None, json=None, token=None):
+    """Выполняет HTTP-запрос к Strapi и обрабатывает типовые ошибки."""
     base_url = settings.STRAPI_BASE_URL.rstrip("/")
     url = f"{base_url}{path}"
     headers = {}
@@ -261,18 +291,22 @@ def _strapi_request(method, path, *, params=None, json=None, token=None):
 
 
 def _strapi_get(path, params=None):
+    """Упрощенный GET-запрос к Strapi без токена."""
     return _strapi_request("GET", path, params=params)
 
 
 def _strapi_get_public(path, params=None):
+    """GET-запрос к Strapi с read-токеном."""
     return _strapi_request("GET", path, params=params, token=_get_read_token())
 
 
 def _strapi_get_admin(path, params=None):
+    """GET-запрос к Strapi с admin-токеном."""
     return _strapi_request("GET", path, params=params, token=_get_admin_token())
 
 
 def list_products(*, page: int, page_size: int, params=None):
+    """Возвращает список публичных товаров и пагинацию."""
     params = params or {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
@@ -304,6 +338,7 @@ def list_products(*, page: int, page_size: int, params=None):
 
 
 def get_product(document_id: str):
+    """Возвращает публичные данные товара по documentId."""
     params = {
         "populate[0]": "image",
         "populate[1]": "category",
@@ -322,6 +357,7 @@ def get_product(document_id: str):
 
 
 def get_product_by_slug(slug: str):
+    """Возвращает товар по slug."""
     params = {
         "filters[slug][$eq]": slug,
         "populate[0]": "image",
@@ -341,6 +377,7 @@ def get_product_by_slug(slug: str):
 
 
 def list_categories(*, page: int, page_size: int):
+    """Возвращает публичный список категорий и пагинацию."""
     params = {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
@@ -370,6 +407,7 @@ def list_categories(*, page: int, page_size: int):
 
 
 def get_category(document_id: str):
+    """Возвращает категорию по documentId."""
     try:
         payload = _strapi_get_public(f"/api/categories/{document_id}")
     except StrapiRequestError as exc:
@@ -384,6 +422,7 @@ def get_category(document_id: str):
 
 
 def list_categories_admin(*, page: int, page_size: int):
+    """Возвращает список категорий через admin API Strapi."""
     params = {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
@@ -413,6 +452,7 @@ def list_categories_admin(*, page: int, page_size: int):
 
 
 def get_category_admin(document_id: str):
+    """Возвращает категорию из admin API по documentId."""
     try:
         payload = _strapi_get_admin(f"/api/categories/{document_id}")
     except StrapiRequestError as exc:
@@ -427,6 +467,7 @@ def get_category_admin(document_id: str):
 
 
 def create_category_admin(data):
+    """Создает категорию через admin API Strapi."""
     payload = _strapi_request(
         "POST",
         "/api/categories",
@@ -441,6 +482,7 @@ def create_category_admin(data):
 
 
 def update_category_admin(document_id: str, data):
+    """Обновляет категорию через admin API Strapi."""
     payload = _strapi_request(
         "PUT",
         f"/api/categories/{document_id}",
@@ -455,6 +497,7 @@ def update_category_admin(document_id: str, data):
 
 
 def delete_category_admin(document_id: str):
+    """Удаляет категорию через admin API Strapi."""
     try:
         _strapi_request(
             "DELETE",
@@ -466,6 +509,7 @@ def delete_category_admin(document_id: str):
 
 
 def list_products_admin(*, page: int, page_size: int, params=None):
+    """Возвращает список товаров через admin API Strapi."""
     params = params or {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
@@ -496,6 +540,7 @@ def list_products_admin(*, page: int, page_size: int, params=None):
 
 
 def get_product_admin(document_id: str):
+    """Возвращает товар через admin API Strapi."""
     params = {"populate": "category"}
     try:
         payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
@@ -511,6 +556,7 @@ def get_product_admin(document_id: str):
 
 
 def create_product_admin(data):
+    """Создает товар через admin API Strapi."""
     payload = _strapi_request(
         "POST",
         "/api/products",
@@ -525,6 +571,7 @@ def create_product_admin(data):
 
 
 def update_product_admin(document_id: str, data):
+    """Обновляет товар через admin API Strapi."""
     payload = _strapi_request(
         "PUT",
         f"/api/products/{document_id}",
@@ -539,6 +586,7 @@ def update_product_admin(document_id: str, data):
 
 
 def update_product_admin_flat(document_id: str, data):
+    """Обновляет товар с fallback между flat- и nested-payload форматами."""
     try:
         payload = _strapi_request(
             "PUT",
@@ -565,6 +613,7 @@ def update_product_admin_flat(document_id: str, data):
 
 
 def delete_product_admin(document_id: str):
+    """Удаляет товар через admin API Strapi."""
     try:
         _strapi_request(
             "DELETE",
@@ -576,6 +625,7 @@ def delete_product_admin(document_id: str):
 
 
 def get_product_admin_raw(document_id: str):
+    """Возвращает сырой словарь атрибутов товара из Strapi."""
     params = {"populate": "category"}
     try:
         payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
@@ -591,6 +641,7 @@ def get_product_admin_raw(document_id: str):
 
 
 def update_product_admin_raw(document_id: str, data):
+    """Отправляет сырой payload обновления товара в Strapi."""
     try:
         _strapi_request(
             "PUT",

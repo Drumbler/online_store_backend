@@ -1,3 +1,5 @@
+"""URL-маршруты account API."""
+
 from django.urls import path
 
 from .account_views import AccountChangePasswordView

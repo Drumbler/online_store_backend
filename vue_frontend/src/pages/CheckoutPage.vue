@@ -1,27 +1,27 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Checkout</h1>
+    <h1>Оформление заказа</h1>
 
     <form class="form surface-card" @submit.prevent>
       <label>
-        City
+        Город
         <input v-model="address.city" required />
       </label>
       <label>
-        Postal code
+        Почтовый индекс
         <input v-model="address.postal_code" :required="shippingType === 'courier'" />
       </label>
       <label>
-        Street
+        Улица
         <input v-model="address.street" required />
       </label>
       <label>
-        House
+        Дом
         <input v-model="address.house" required />
       </label>
 
       <label>
-        Shipping provider
+        Служба доставки
         <select v-model="shippingProvider" :disabled="loadingMethods || submittingConfirm || calculating">
           <option v-for="method in shippingMethods" :key="method.provider_id" :value="method.provider_id">
             {{ method.title }}
@@ -30,8 +30,8 @@
       </label>
 
       <div class="mode-field">
-        <span class="mode-label">Delivery mode</span>
-        <div class="mode-switch" role="radiogroup" aria-label="Delivery mode">
+        <span class="mode-label">Способ получения</span>
+        <div class="mode-switch" role="radiogroup" aria-label="Способ получения">
           <button
             type="button"
             class="mode-button"
@@ -39,7 +39,7 @@
             :disabled="submittingConfirm || calculating"
             @click="shippingType = 'courier'"
           >
-            Courier
+            Курьер
           </button>
           <button
             type="button"
@@ -48,16 +48,16 @@
             :disabled="submittingConfirm || calculating"
             @click="shippingType = 'pickup'"
           >
-            Pickup
+            Самовывоз
           </button>
         </div>
       </div>
 
       <div v-if="shippingType === 'pickup'" class="pickup-block">
         <label>
-          Pickup point
+          Пункт выдачи
           <select v-model="pickupPointId" :disabled="loadingPickupPoints || submittingConfirm || calculating">
-            <option value="">Select pickup point</option>
+            <option value="">Выберите пункт выдачи</option>
             <option v-for="point in pickupPoints" :key="point.id" :value="point.id">
               {{ point.title || point.address }} - {{ point.address }}
             </option>
@@ -65,12 +65,12 @@
         </label>
 
         <label v-if="isYandexNdd">
-          Search pickup points
-          <input v-model="pickupSearch" type="text" placeholder="Street, district, metro" />
+          Поиск пункта выдачи
+          <input v-model="pickupSearch" type="text" placeholder="Улица, район, метро" />
         </label>
 
         <p v-if="selectedPickupPoint" class="selected-point">
-          Selected: {{ selectedPickupPoint.title || selectedPickupPoint.address }} - {{ selectedPickupPoint.address }}
+          Выбрано: {{ selectedPickupPoint.title || selectedPickupPoint.address }} - {{ selectedPickupPoint.address }}
         </p>
       </div>
 
@@ -79,17 +79,17 @@
       </div>
 
       <p v-if="loadingMethods || loadingPickupPoints" class="state-box loading-note">
-        Content loading...
+        Загрузка контента...
       </p>
 
       <p v-else-if="!hasYandexMapsKey" class="map-hint">
-        Map is hidden: set <code>VITE_YANDEX_MAPS_API_KEY</code> to enable Yandex Maps.
+        Карта скрыта: укажите <code>VITE_YANDEX_MAPS_API_KEY</code>, чтобы включить Яндекс Карты.
       </p>
 
       <p v-if="mapLoadError" class="state-box error">{{ mapLoadError }}</p>
 
       <label>
-        Comment
+        Комментарий
         <textarea v-model="comment" rows="2" />
       </label>
 
@@ -100,7 +100,7 @@
           :disabled="calculating || submittingConfirm || !canCalculate"
           @click="calculateDelivery"
         >
-          Calculate delivery
+          Рассчитать доставку
         </button>
         <button
           type="button"
@@ -108,20 +108,20 @@
           :disabled="submittingConfirm || !preview"
           @click="confirmOrder"
         >
-          Confirm order
+          Подтвердить заказ
         </button>
       </div>
     </form>
 
     <div v-if="cartStore.cart" class="summary surface-card">
-      <div>Cart subtotal: {{ cartStore.cart.subtotal_original }} RUB</div>
-      <div>Cart discount: -{{ cartStore.cart.discount_total }} RUB</div>
+      <div>Сумма корзины: {{ cartStore.cart.subtotal_original }} RUB</div>
+      <div>Скидка: -{{ cartStore.cart.discount_total }} RUB</div>
     </div>
 
     <div v-if="shippingOffers.length" class="summary offers surface-card">
-      <div class="total">Available delivery offers</div>
+      <div class="total">Доступные варианты доставки</div>
       <div v-for="offer in shippingOffers" :key="offer.id" class="offer-row">
-        <span>{{ offer.delivery_type }}</span>
+        <span>{{ deliveryTypeLabel(offer.delivery_type) }}</span>
         <span>{{ offer.price ?? "-" }} RUB</span>
         <span>
           {{ offer.date_interval?.from || "-" }}
@@ -131,17 +131,18 @@
     </div>
 
     <div v-if="preview" class="summary surface-card">
-      <div>Items total: {{ preview.items_total }} {{ preview.currency }}</div>
-      <div>Shipping: {{ preview.shipping_price }} {{ preview.currency }}</div>
-      <div class="total">Total: {{ preview.total }} {{ preview.currency }}</div>
+      <div>Стоимость товаров: {{ preview.items_total }} {{ preview.currency }}</div>
+      <div>Доставка: {{ preview.shipping_price }} {{ preview.currency }}</div>
+      <div class="total">Итого: {{ preview.total }} {{ preview.currency }}</div>
     </div>
 
     <div v-if="error" class="state-box error">{{ error }}</div>
-    <div v-if="success" class="state-box success">Order created. Redirecting to payment...</div>
+    <div v-if="success" class="state-box success">Заказ создан. Перенаправляем на оплату...</div>
   </section>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
@@ -201,6 +202,13 @@ type PreviewPayload = {
   shipping_price: number;
   total: number;
   currency: string;
+};
+
+const deliveryTypeLabel = (value?: string) => {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "pickup") return "Самовывоз";
+  if (normalized === "courier") return "Курьер";
+  return value || "-";
 };
 
 const router = useRouter();
@@ -349,7 +357,7 @@ const applyPickupPointAddress = (point: PickupPoint) => {
 
 const loadYandexMaps = async () => {
   if (!hasYandexMapsKey) {
-    throw new Error("Yandex Maps API key is not configured.");
+    throw new Error("Ключ API Яндекс Карт не настроен.");
   }
 
   if (window.ymaps) {
@@ -369,7 +377,7 @@ const loadYandexMaps = async () => {
             reject(err);
           }
         });
-        existingScript.addEventListener("error", () => reject(new Error("Failed to load Yandex Maps script.")));
+        existingScript.addEventListener("error", () => reject(new Error("Не удалось загрузить скрипт Яндекс Карт.")));
         return;
       }
 
@@ -385,7 +393,7 @@ const loadYandexMaps = async () => {
           reject(err);
         }
       };
-      script.onerror = () => reject(new Error("Failed to load Yandex Maps script."));
+      script.onerror = () => reject(new Error("Не удалось загрузить скрипт Яндекс Карт."));
       document.head.appendChild(script);
     });
   }
@@ -429,7 +437,7 @@ const renderPickupPointsOnMap = (ymaps: any) => {
       [point.lat, point.lng],
       {
         hintContent: point.title || point.address,
-        balloonContentHeader: point.title || "Pickup point",
+        balloonContentHeader: point.title || "Пункт выдачи",
         balloonContentBody: point.address
       },
       {
@@ -465,7 +473,7 @@ const renderCourierAddressOnMap = (ymaps: any) => {
     const placemark = new ymaps.Placemark(
       courierCoords.value,
       {
-        hintContent: "Courier address",
+        hintContent: "Адрес курьера",
         balloonContent: `${address.value.city}, ${address.value.street}, ${address.value.house}`
       },
       {
@@ -556,7 +564,7 @@ const geocodeCourierAddress = async () => {
     }
 
     courierCoords.value = null;
-    mapLoadError.value = "Failed to resolve courier address on map. You can continue with text fields.";
+    mapLoadError.value = "Не удалось определить адрес курьера на карте. Можно продолжить по текстовым полям.";
 
     try {
       await renderMap();
@@ -590,7 +598,7 @@ const loadShippingMethods = async () => {
       shippingProvider.value = shippingMethods.value[0].provider_id;
     }
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load shipping methods.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить способы доставки.";
   } finally {
     loadingMethods.value = false;
   }
@@ -641,12 +649,12 @@ const loadPickupPoints = async () => {
       try {
         await renderMap();
       } catch {
-        mapLoadError.value = "Failed to load Yandex map. You can still select pickup point from dropdown.";
+        mapLoadError.value = "Не удалось загрузить карту Яндекса. Вы можете выбрать пункт выдачи из списка.";
       }
     }
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load pickup points.";
-    mapLoadError.value = hasYandexMapsKey ? "Map is unavailable right now." : null;
+    error.value = err?.response?.data?.detail || "Не удалось загрузить пункты выдачи.";
+    mapLoadError.value = hasYandexMapsKey ? "Карта временно недоступна." : null;
   } finally {
     loadingPickupPoints.value = false;
   }
@@ -670,11 +678,11 @@ const quotePayload = () => ({
 const calculateDelivery = async () => {
   if (!canCalculate.value) {
     if (shippingType.value === "pickup" && !pickupPointId.value) {
-      error.value = "Select pickup point to continue.";
+      error.value = "Выберите пункт выдачи, чтобы продолжить.";
       return;
     }
     if (shippingType.value === "courier" && !address.value.postal_code) {
-      error.value = "Postal code is required for courier delivery.";
+      error.value = "Для курьерской доставки нужен почтовый индекс.";
     }
     return;
   }
@@ -694,7 +702,7 @@ const calculateDelivery = async () => {
     preview.value = response.data as PreviewPayload;
   } catch (err: any) {
     const data = err?.response?.data;
-    error.value = data?.detail || Object.values(data || {})?.[0]?.[0] || "Failed to calculate delivery.";
+    error.value = data?.detail || Object.values(data || {})?.[0]?.[0] || "Не удалось рассчитать доставку.";
     preview.value = null;
     shippingOffers.value = [];
   } finally {
@@ -708,7 +716,7 @@ const confirmOrder = async () => {
   }
 
   if (shippingType.value === "pickup" && !pickupPointId.value) {
-    error.value = "Select pickup point before confirming the order.";
+    error.value = "Выберите пункт выдачи перед подтверждением заказа.";
     return;
   }
 
@@ -735,7 +743,7 @@ const confirmOrder = async () => {
     await router.push({ path: "/pay", query });
   } catch (err: any) {
     const data = err?.response?.data;
-    error.value = data?.detail || Object.values(data || {})?.[0]?.[0] || "Failed to confirm order.";
+    error.value = data?.detail || Object.values(data || {})?.[0]?.[0] || "Не удалось подтвердить заказ.";
   } finally {
     submittingConfirm.value = false;
   }
@@ -788,7 +796,7 @@ watch(shippingType, async (nextType, previousType) => {
         await nextTick();
         await renderMap();
       } catch {
-        mapLoadError.value = "Failed to load Yandex map. You can still select pickup point from dropdown.";
+        mapLoadError.value = "Не удалось загрузить карту Яндекса. Вы можете выбрать пункт выдачи из списка.";
       }
     }
     return;
@@ -833,7 +841,7 @@ watch(pickupPointId, async () => {
   try {
     await renderMap();
   } catch {
-    mapLoadError.value = "Failed to update map. Dropdown selection still works.";
+    mapLoadError.value = "Не удалось обновить карту. Выбор пункта выдачи из списка работает.";
   }
 });
 
@@ -852,7 +860,7 @@ watch(showMap, async (enabled) => {
       scheduleCourierGeocode();
     }
   } catch {
-    mapLoadError.value = "Failed to load Yandex map.";
+    mapLoadError.value = "Не удалось загрузить карту Яндекса.";
   }
 });
 
@@ -917,8 +925,8 @@ label {
 
 .mode-button {
   border: 0;
-  min-height: 40px;
-  padding: 8px 16px;
+  min-height: 34px;
+  padding: 6px 12px;
   cursor: pointer;
   border-radius: 0;
   background: color-mix(in srgb, var(--surface) 82%, var(--border));

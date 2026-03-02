@@ -1,3 +1,5 @@
+"""Админские API-эндпоинты для списка и редактирования пользователей."""
+
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from rest_framework.mixins import ListModelMixin
@@ -14,11 +16,14 @@ User = get_user_model()
 
 
 class AdminUserPagination(PageNumberPagination):
+    """Пагинация ответа admin users с единым контрактом pagination."""
+
     page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 50
 
     def get_paginated_response(self, data):
+        """Возвращает пагинированный ответ в формате frontend-клиента."""
         page_size = self.get_page_size(self.request) or len(data)
         return Response(
             {
@@ -33,6 +38,8 @@ class AdminUserPagination(PageNumberPagination):
 
 
 class AdminUserViewSet(ListModelMixin, RetrieveModelMixin, UpdateModelMixin, GenericViewSet):
+    """CRUD-lite viewset для управления пользователями в админке."""
+
     serializer_class = AdminUserSerializer
     permission_classes = [IsAdminUser]
     pagination_class = AdminUserPagination
@@ -40,6 +47,7 @@ class AdminUserViewSet(ListModelMixin, RetrieveModelMixin, UpdateModelMixin, Gen
     http_method_names = ["get", "patch", "head", "options"]
 
     def get_queryset(self):
+        """Применяет фильтры поиска, роли и активности к списку пользователей."""
         queryset = self.queryset
         params = self.request.query_params
 

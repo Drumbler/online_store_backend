@@ -1,3 +1,5 @@
+"""Админские API viewset'ы для категорий и товаров каталога."""
+
 import json
 import logging
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -40,6 +42,7 @@ CATEGORY_PRODUCTS_PAGE_SIZE = 100
 
 
 def _positive_int(value, default):
+    """Преобразует значение в положительное целое или возвращает default."""
     try:
         value = int(value)
     except (TypeError, ValueError):
@@ -50,6 +53,7 @@ def _positive_int(value, default):
 
 
 def _build_pagination(page, page_size):
+    """Нормализует параметры пагинации для админских списков."""
     page = _positive_int(page, 1)
     page_size = _positive_int(page_size, DEFAULT_PAGE_SIZE)
     if page_size > MAX_PAGE_SIZE:
@@ -58,10 +62,12 @@ def _build_pagination(page, page_size):
 
 
 def _published_at(publish):
+    """Возвращает timestamp публикации для Strapi или `None` для черновика."""
     return timezone.now().isoformat() if publish else None
 
 
 def _extract_category_document_id(category):
+    """Достает category documentId/id из разных форматов payload."""
     if not category:
         return None
     if isinstance(category, dict) and "data" in category:
@@ -72,6 +78,7 @@ def _extract_category_document_id(category):
 
 
 def _normalize_price_value(value):
+    """Приводит цену к строке формата `0.00` для API Strapi."""
     if value is None:
         return None
     try:
@@ -83,6 +90,7 @@ def _normalize_price_value(value):
 
 
 def _trim_strapi_message(text):
+    """Извлекает короткое человеко-читаемое сообщение ошибки Strapi."""
     message = None
     if text is not None:
         try:
@@ -104,6 +112,7 @@ def _trim_strapi_message(text):
 
 
 def _is_slug_conflict(response_text):
+    """Определяет, относится ли ошибка Strapi к конфликту slug."""
     if not response_text:
         return False
     try:
@@ -121,6 +130,7 @@ def _is_slug_conflict(response_text):
 
 
 def _slug_conflict_response():
+    """Формирует стандартизованный ответ при конфликте slug."""
     return Response(
         {"slug": ["This slug is already in use."]},
         status=status.HTTP_400_BAD_REQUEST,
@@ -128,6 +138,7 @@ def _slug_conflict_response():
 
 
 def _category_products_params(category_id, page, page_size):
+    """Собирает параметры запроса товаров категории в Strapi."""
     return {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
@@ -137,6 +148,7 @@ def _category_products_params(category_id, page, page_size):
 
 
 def _build_product_payload(attrs):
+    """Формирует payload товара в формате, ожидаемом Strapi."""
     payload = {
         "title": attrs.get("title"),
         "slug": attrs.get("slug"),
@@ -150,6 +162,7 @@ def _build_product_payload(attrs):
 
 
 def _get_category_discount_stats(category_id):
+    """Считает агрегированную статистику скидок по категории."""
     page = 1
     total_in_category = 0
     discounts = set()
@@ -193,10 +206,13 @@ def _get_category_discount_stats(category_id):
 
 
 class CategoryAdminViewSet(ViewSet):
+    """Управление категориями каталога в админском API."""
+
     permission_classes = [IsAdminUser]
     serializer_class = CategoryAdminSerializer
 
     def list(self, request):
+        """Возвращает список категорий со статистикой скидок."""
         page, page_size = _build_pagination(
             request.query_params.get("page"),
             request.query_params.get("page_size"),
@@ -222,6 +238,7 @@ class CategoryAdminViewSet(ViewSet):
         return Response({"results": serializer.data, "pagination": pagination})
 
     def retrieve(self, request, pk=None):
+        """Возвращает категорию по ID."""
         try:
             category = get_category_admin(pk)
         except StrapiNotFoundError:
@@ -236,6 +253,7 @@ class CategoryAdminViewSet(ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        """Создает категорию в Strapi."""
         serializer = CategoryUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = {**serializer.validated_data}
@@ -258,6 +276,7 @@ class CategoryAdminViewSet(ViewSet):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
+        """Обновляет категорию в Strapi."""
         serializer = CategoryUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payload = {**serializer.validated_data}
@@ -282,6 +301,7 @@ class CategoryAdminViewSet(ViewSet):
         return Response(response_serializer.data)
 
     def destroy(self, request, pk=None):
+        """Удаляет категорию по ID."""
         try:
             delete_category_admin(pk)
         except StrapiNotFoundError:
@@ -296,6 +316,7 @@ class CategoryAdminViewSet(ViewSet):
 
     @action(detail=True, methods=["post"], url_path="apply-discount")
     def apply_discount(self, request, pk=None):
+        """Применяет скидку ко всем товарам категории."""
         serializer = CategoryDiscountApplySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         requested_discount = serializer.validated_data["discount_percent"]
@@ -370,6 +391,7 @@ class CategoryAdminViewSet(ViewSet):
 
     @action(detail=True, methods=["post"], url_path="remove-discount")
     def remove_discount(self, request, pk=None):
+        """Сбрасывает скидку до 0 для всех товаров категории."""
         page = 1
         updated_count = 0
         skipped_count = 0
@@ -440,10 +462,13 @@ class CategoryAdminViewSet(ViewSet):
 
 
 class ProductAdminViewSet(ViewSet):
+    """Управление товарами каталога в админском API."""
+
     permission_classes = [IsAdminUser]
     serializer_class = ProductAdminSerializer
 
     def list(self, request):
+        """Возвращает список товаров с пагинацией."""
         page, page_size = _build_pagination(
             request.query_params.get("page"),
             request.query_params.get("page_size"),
@@ -460,6 +485,7 @@ class ProductAdminViewSet(ViewSet):
         return Response({"results": serializer.data, "pagination": pagination})
 
     def retrieve(self, request, pk=None):
+        """Возвращает товар по ID."""
         try:
             product = get_product_admin(pk)
         except StrapiNotFoundError:
@@ -474,6 +500,7 @@ class ProductAdminViewSet(ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        """Создает товар в Strapi."""
         serializer = ProductUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         publish = serializer.validated_data.pop("publish", True)
@@ -501,6 +528,7 @@ class ProductAdminViewSet(ViewSet):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None):
+        """Частично обновляет товар в Strapi."""
         serializer = ProductUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -558,6 +586,7 @@ class ProductAdminViewSet(ViewSet):
         return Response(response_serializer.data)
 
     def destroy(self, request, pk=None):
+        """Удаляет товар по ID."""
         try:
             delete_product_admin(pk)
         except StrapiNotFoundError:
@@ -572,6 +601,7 @@ class ProductAdminViewSet(ViewSet):
 
     @action(detail=False, methods=["post"], url_path="bulk-update")
     def bulk_update(self, request):
+        """Выполняет массовые операции над списком товаров."""
         serializer = BulkUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product_ids = serializer.validated_data["product_ids"]

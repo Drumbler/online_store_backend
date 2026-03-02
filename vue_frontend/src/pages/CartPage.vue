@@ -1,17 +1,17 @@
 <template>
   <section class="page bg-app text-app">
-    <h1>Cart</h1>
+    <h1>Корзина</h1>
 
-    <div v-if="cartStore.loading" class="state-box">Loading...</div>
+    <div v-if="cartStore.loading" class="state-box">Загрузка...</div>
     <div v-else-if="cartStore.error" class="state-box error">{{ cartStore.error }}</div>
 
     <table v-else class="table surface-card">
       <thead>
         <tr>
-          <th>Item</th>
-          <th>Price</th>
-          <th>Qty</th>
-          <th>Subtotal</th>
+          <th>Товар</th>
+          <th>Цена</th>
+          <th>Кол-во</th>
+          <th>Сумма</th>
           <th></th>
         </tr>
       </thead>
@@ -44,25 +44,26 @@
           </td>
           <td>{{ item.line_total }} {{ item.product.currency || "RUB" }}</td>
           <td>
-            <button class="btn btn-neutral btn-remove" @click="cartStore.removeItem(item.id)">Remove</button>
+            <button class="btn btn-neutral btn-remove" @click="cartStore.removeItem(item.id)">Удалить</button>
           </td>
         </tr>
       </tbody>
     </table>
 
     <div v-if="cartStore.cart" class="summary surface-card">
-      <div>Subtotal: {{ cartStore.cart.subtotal_original }} RUB</div>
-      <div>Discount: -{{ cartStore.cart.discount_total }} RUB</div>
-      <div class="total">Total: {{ cartStore.cart.total }} RUB</div>
+      <div>Подытог: {{ cartStore.cart.subtotal_original }} RUB</div>
+      <div>Скидка: -{{ cartStore.cart.discount_total }} RUB</div>
+      <div class="total">Итого: {{ cartStore.cart.total }} RUB</div>
     </div>
 
     <div class="actions">
-      <RouterLink to="/checkout" class="btn btn-primary">Checkout</RouterLink>
+      <RouterLink to="/checkout" class="btn btn-primary">Оформить заказ</RouterLink>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { onMounted } from "vue";
 import { useCartStore, type CartItem } from "../stores/cart";
 

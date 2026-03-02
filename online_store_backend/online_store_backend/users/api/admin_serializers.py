@@ -1,3 +1,5 @@
+"""Сериализаторы для админского управления пользователями."""
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -5,6 +7,8 @@ User = get_user_model()
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
+    """Сериализатор редактирования ролей/статуса пользователя для админа."""
+
     class Meta:
         model = User
         fields = [
@@ -28,6 +32,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        """Защищает суперпользователей и запрет на self-lockout администратора."""
         if "is_superuser" in self.initial_data:
             raise serializers.ValidationError(
                 {"is_superuser": "Updating is_superuser is not allowed."}

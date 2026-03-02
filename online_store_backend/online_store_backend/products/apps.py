@@ -1,8 +1,12 @@
+"""Конфигурация Django-приложения каталога товаров."""
+
 from django.apps import AppConfig
 from django.utils.translation import gettext_lazy as _
 
 
 class ProductsConfig(AppConfig):
+    """Регистрация приложения products в Django."""
+
     default_auto_field = "django.db.models.BigAutoField"
     name = "online_store_backend.products"
     verbose_name = _("Products")

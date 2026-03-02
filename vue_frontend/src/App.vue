@@ -1,27 +1,29 @@
 <template>
   <div class="app" :style="storefrontStyle" :class="{ 'storefront-dark': isStorefrontDark }">
     <header v-if="showPublicNav" class="navbar">
-      <nav class="nav-links" aria-label="Store navigation">
+      <nav class="nav-links" aria-label="Навигация магазина">
         <div class="nav-left">
-          <RouterLink to="/" class="brand-link" :aria-label="`${shopName} home`">
-            <img v-if="logoUrl" :src="logoUrl" alt="Shop logo" class="shop-logo" />
+          <RouterLink to="/" class="brand-link" :aria-label="`${shopName} — главная`">
+            <img v-if="logoUrl" :src="logoUrl" alt="Логотип магазина" class="shop-logo" />
             <span v-else class="shop-name">{{ shopName }}</span>
           </RouterLink>
         </div>
 
         <div class="nav-center">
           <div class="nav-center-links">
-            <RouterLink to="/" class="nav-link">Catalog</RouterLink>
-            <RouterLink to="/categories" class="nav-link">Categories</RouterLink>
-            <RouterLink to="/orders" class="nav-link">{{ isLoggedIn ? "My orders" : "Track order" }}</RouterLink>
-            <RouterLink v-if="isAdmin" to="/admin" class="nav-link">Admin</RouterLink>
-            <RouterLink v-if="!isLoggedIn" to="/login" class="nav-link">Login</RouterLink>
-            <RouterLink v-if="!isLoggedIn" to="/register" class="nav-link">Register</RouterLink>
+            <RouterLink to="/" class="nav-link">Каталог</RouterLink>
+            <RouterLink to="/categories" class="nav-link">Категории</RouterLink>
+            <RouterLink :to="ordersRoutePath" class="nav-link">
+              {{ isLoggedIn ? "Мои заказы" : "Поиск заказа" }}
+            </RouterLink>
+            <RouterLink v-if="isAdmin" to="/admin" class="nav-link">Админка</RouterLink>
+            <RouterLink v-if="!isLoggedIn" to="/login" class="nav-link">Войти</RouterLink>
+            <RouterLink v-if="!isLoggedIn" to="/register" class="nav-link">Регистрация</RouterLink>
           </div>
         </div>
 
         <div class="nav-right">
-          <RouterLink to="/cart" class="icon-btn" aria-label="Cart" title="Cart">
+          <RouterLink to="/cart" class="icon-btn" aria-label="Корзина" title="Корзина">
             <svg
               class="icon-svg"
               viewBox="0 0 24 24"
@@ -41,7 +43,7 @@
             v-if="isLoggedIn"
             to="/account"
             class="icon-btn"
-            aria-label="Profile"
+            aria-label="Профиль"
             title="Личный кабинет"
           >
             <svg
@@ -70,7 +72,7 @@
         target="_blank"
         rel="noopener noreferrer"
       >
-        <img class="banner-image" :src="banner.image_url" alt="Store banner" />
+        <img class="banner-image" :src="banner.image_url" alt="Баннер магазина" />
       </a>
     </section>
 
@@ -80,12 +82,13 @@
 
     <footer v-if="showPublicNav" class="store-footer">
       <RouterLink to="/" class="footer-brand">{{ shopName }}</RouterLink>
-      <span class="footer-copy">Curated products for everyday needs</span>
+      <span class="footer-copy">Товары для повседневных задач</span>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 
@@ -98,10 +101,11 @@ const authStore = useAuthStore();
 const appearanceStore = useAppearanceStore();
 const route = useRoute();
 
-const shopName = "Online Store";
+const shopName = "Интернет-магазин";
 const cartCount = computed(() => cartStore.cartCount);
 const logoUrl = computed(() => appearanceStore.payload.logo_url || "");
 const isLoggedIn = computed(() => Boolean(authStore.token));
+const ordersRoutePath = computed(() => (isLoggedIn.value ? "/orders" : "/orders/find"));
 const isAdmin = computed(
   () =>
     Boolean(

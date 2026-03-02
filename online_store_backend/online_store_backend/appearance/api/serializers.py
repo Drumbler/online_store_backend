@@ -1,3 +1,5 @@
+"""Сериализаторы API для черновых и публичных настроек внешнего вида."""
+
 from rest_framework import serializers
 
 from ..models import AppearanceBanner
@@ -11,6 +13,8 @@ from ..validators import validate_logo_file
 
 
 class DraftAppearanceSettingsSerializer(serializers.Serializer):
+    """Валидирует изменения черновых настроек оформления магазина."""
+
     theme_mode = serializers.ChoiceField(choices=ThemeMode.values, required=False)
     primary_color = serializers.RegexField(regex=r"^#[0-9A-Fa-f]{6}$", required=False)
     logo = serializers.ImageField(required=False, allow_null=True, validators=[validate_logo_file])
@@ -23,6 +27,7 @@ class DraftAppearanceSettingsSerializer(serializers.Serializer):
     active_product_card_preset_id = serializers.IntegerField(required=False)
 
     def _validate_active_preset(self, preset_id, preset_type, field_name):
+        """Проверяет, что активный пресет существует и относится к нужному типу."""
         exists = AppearancePreset.objects.filter(
             id=preset_id,
             is_published=False,
@@ -35,6 +40,7 @@ class DraftAppearanceSettingsSerializer(serializers.Serializer):
         return preset_id
 
     def validate(self, attrs):
+        """Проверяет взаимоисключающие и ссылочные поля в payload."""
         if attrs.get("clear_logo") and attrs.get("logo"):
             raise serializers.ValidationError({"logo": "Upload logo or clear it, but not both at once."})
 
@@ -63,6 +69,8 @@ class DraftAppearanceSettingsSerializer(serializers.Serializer):
 
 
 class AppearancePresetSerializer(serializers.ModelSerializer):
+    """Сериализует пресеты карточек/страницы товара."""
+
     preset_type = serializers.ChoiceField(choices=PresetType.values)
 
     class Meta:
@@ -78,6 +86,7 @@ class AppearancePresetSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at")
 
     def validate(self, attrs):
+        """Нормализует конфиг пресета под его тип и запрещает смену типа."""
         instance = getattr(self, "instance", None)
         preset_type = attrs.get("preset_type") or (instance.preset_type if instance else None)
         if not preset_type:
@@ -97,6 +106,8 @@ class AppearancePresetSerializer(serializers.ModelSerializer):
 
 
 class AppearanceBannerSerializer(serializers.ModelSerializer):
+    """Сериализует баннеры и валидирует правила размещения."""
+
     placement = serializers.ChoiceField(choices=BannerPlacement.values)
 
     class Meta:
@@ -115,6 +126,7 @@ class AppearanceBannerSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at", "updated_at")
 
     def validate(self, attrs):
+        """Проверяет связку `placement` и `after_row`."""
         placement = attrs.get("placement")
         after_row = attrs.get("after_row")
 

@@ -1,25 +1,39 @@
 <template>
   <section class="page bg-app text-app">
-    <div v-if="catalogStore.loading" class="state-box">Loading...</div>
+    <div v-if="catalogStore.loading" class="state-box">Загрузка...</div>
     <div v-else-if="catalogStore.error" class="state-box error">{{ catalogStore.error }}</div>
 
     <div v-else-if="product" class="product-wrap">
       <div
         class="product-main"
-        :class="[`layout-${productPagePreset.layout_mode}`, `photo-${productPagePreset.photo_mode}`]"
+        :class="[layoutClass, photoClass]"
       >
-        <div class="media-panel">
-          <img
-            v-if="product.image_url"
-            :src="product.image_url"
-            :alt="product.title"
-            class="image"
-          />
-          <div v-else class="placeholder">No image</div>
+        <div
+          class="media-panel"
+          :class="mediaModeClass"
+          @mouseenter="startHoverCarousel"
+          @mouseleave="stopHoverCarousel"
+        >
+          <div class="image-stage">
+            <img
+              v-if="activeImageUrl"
+              :src="activeImageUrl"
+              :alt="product.title"
+              class="image"
+            />
+            <div v-else class="placeholder">Нет изображения</div>
+          </div>
 
-          <div class="thumbs" :class="`thumbs-${productPagePreset.photo_mode}`">
-            <img v-if="product.thumbnail_url || product.image_url" :src="product.thumbnail_url || product.image_url || ''" alt="thumb" class="thumb" />
-            <img v-if="product.image_url" :src="product.image_url" alt="thumb" class="thumb" />
+          <div v-if="thumbnailItems.length" class="thumbs" :class="thumbsModeClass">
+            <button
+              v-for="thumb in thumbnailItems"
+              :key="`thumb-${thumb.index}-${thumb.url}`"
+              type="button"
+              class="thumb-btn"
+              @click="setActiveImage(thumb.index)"
+            >
+              <img :src="thumb.url" alt="Миниатюра товара" class="thumb" />
+            </button>
           </div>
         </div>
 
@@ -65,92 +79,47 @@
             </button>
 
             <p v-else-if="block.type === 'short_description'" class="description">
-              {{ product.description || "No description" }}
+              {{ product.description || "Нет описания" }}
             </p>
 
             <div v-else-if="block.type === 'buy_button'" class="buy-block">
               <label class="qty">
-                Qty
+                Количество
                 <select v-model.number="qty">
                   <option v-for="n in 10" :key="`qty-page-${n}`" :value="n">{{ n }}</option>
                 </select>
               </label>
-              <button class="btn btn-primary" @click="addToCart">Add to cart</button>
+              <button class="btn btn-primary" @click="addToCart">Добавить в корзину</button>
             </div>
           </template>
         </div>
-
-        <aside class="buy-panel" :class="`layout-${productCardPreset.layout_mode}`">
-          <h2 class="panel-title">Purchase card</h2>
-          <template v-for="block in visibleProductCardBlocks" :key="`card-${block.type}`">
-            <h3 v-if="block.type === 'title'">{{ product.title }}</h3>
-
-            <div v-else-if="block.type === 'price'" class="price">
-              <template v-if="hasDiscount(product)">
-                <span class="old">{{ product.price }} {{ product.currency }}</span>
-                <span class="new">{{ discountedPrice(product) }} {{ product.currency }}</span>
-              </template>
-              <template v-else>
-                <span>{{ product.price }} {{ product.currency }}</span>
-              </template>
-            </div>
-
-            <div v-else-if="block.type === 'rating'" class="rating-summary-inline">
-              <template v-if="hasRatingSummary">
-                <StarRatingDisplay :rating="ratingSummary.avg_rating" size="14px" />
-                <span>{{ ratingSummary.avg_rating?.toFixed(1) }}</span>
-              </template>
-              <template v-else>
-                <span class="rating-summary-empty">—</span>
-              </template>
-            </div>
-
-            <div v-else-if="block.type === 'reviews_count'" class="reviews-count-inline">
-              {{ reviewsCountText }}
-            </div>
-
-            <p v-else-if="block.type === 'short_description'" class="description compact">
-              {{ shortDescription }}
-            </p>
-
-            <div v-else-if="block.type === 'buy_button'" class="buy-block compact">
-              <label class="qty compact">
-                Qty
-                <select v-model.number="qty">
-                  <option v-for="n in 10" :key="`qty-card-${n}`" :value="n">{{ n }}</option>
-                </select>
-              </label>
-              <button class="btn btn-primary" @click="addToCart">Add to cart</button>
-            </div>
-          </template>
-        </aside>
       </div>
 
       <section class="reviews-section">
         <div class="reviews-header">
-          <h2>Reviews ({{ reviewsTotal }})</h2>
+          <h2>Отзывы ({{ reviewsTotal }})</h2>
           <button
             type="button"
             class="btn btn-outline"
             :disabled="reviewsTotal === 0"
             @click="openAllReviewsModal"
           >
-            All reviews
+            Все отзывы
           </button>
         </div>
 
-        <div v-if="reviewsLoading" class="state-box">Loading reviews...</div>
+        <div v-if="reviewsLoading" class="state-box">Загрузка отзывов...</div>
         <div v-else-if="reviewsError" class="state-box error">{{ reviewsError }}</div>
-        <div v-else-if="latestReviews.length === 0" class="state-box">No reviews yet.</div>
+        <div v-else-if="latestReviews.length === 0" class="state-box">Отзывов пока нет.</div>
         <ul v-else class="reviews-list">
           <li v-for="review in latestReviews" :key="review.id" class="review-card">
             <div class="review-top">
               <span class="review-author">{{ review.author_display_name }}</span>
               <span class="review-stars">{{ starsText(review.rating) }}</span>
             </div>
-            <p v-if="review.pros" class="review-text"><strong>Pros:</strong> {{ review.pros }}</p>
-            <p v-if="review.cons" class="review-text"><strong>Cons:</strong> {{ review.cons }}</p>
-            <p v-if="review.comment" class="review-text"><strong>Comment:</strong> {{ review.comment }}</p>
+            <p v-if="review.pros" class="review-text"><strong>Плюсы:</strong> {{ review.pros }}</p>
+            <p v-if="review.cons" class="review-text"><strong>Минусы:</strong> {{ review.cons }}</p>
+            <p v-if="review.comment" class="review-text"><strong>Комментарий:</strong> {{ review.comment }}</p>
             <p class="review-date">{{ formatDate(review.created_at) }}</p>
           </li>
         </ul>
@@ -160,17 +129,17 @@
     <div v-if="showAllReviews && product" class="modal" @click.self="closeAllReviewsModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>All reviews</h3>
+          <h3>Все отзывы</h3>
           <button type="button" class="btn btn-neutral close-btn" @click="closeAllReviewsModal">
-            Close
+            Закрыть
           </button>
         </div>
 
         <div class="filters">
           <label>
-            Rating
+            Рейтинг
             <select v-model="ratingFilter">
-              <option value="">All</option>
+              <option value="">Все</option>
               <option value="4">4★+</option>
               <option value="3">3★+</option>
               <option value="2">2★+</option>
@@ -179,28 +148,28 @@
           </label>
 
           <label>
-            Sort
+            Сортировка
             <select v-model="sortFilter">
-              <option value="created_desc">Date: new to old</option>
-              <option value="created_asc">Date: old to new</option>
-              <option value="rating_desc">Rating: high to low</option>
-              <option value="rating_asc">Rating: low to high</option>
+              <option value="created_desc">Дата: новые сначала</option>
+              <option value="created_asc">Дата: старые сначала</option>
+              <option value="rating_desc">Рейтинг: высокий к низкому</option>
+              <option value="rating_asc">Рейтинг: низкий к высокому</option>
             </select>
           </label>
         </div>
 
-        <div v-if="allReviewsLoading" class="state-box">Loading reviews...</div>
+        <div v-if="allReviewsLoading" class="state-box">Загрузка отзывов...</div>
         <div v-else-if="allReviewsError" class="state-box error">{{ allReviewsError }}</div>
-        <div v-else-if="allReviews.length === 0" class="state-box">No reviews for selected filters.</div>
+        <div v-else-if="allReviews.length === 0" class="state-box">Нет отзывов для выбранных фильтров.</div>
         <ul v-else class="reviews-list">
           <li v-for="review in allReviews" :key="review.id" class="review-card">
             <div class="review-top">
               <span class="review-author">{{ review.author_display_name }}</span>
               <span class="review-stars">{{ starsText(review.rating) }}</span>
             </div>
-            <p v-if="review.pros" class="review-text"><strong>Pros:</strong> {{ review.pros }}</p>
-            <p v-if="review.cons" class="review-text"><strong>Cons:</strong> {{ review.cons }}</p>
-            <p v-if="review.comment" class="review-text"><strong>Comment:</strong> {{ review.comment }}</p>
+            <p v-if="review.pros" class="review-text"><strong>Плюсы:</strong> {{ review.pros }}</p>
+            <p v-if="review.cons" class="review-text"><strong>Минусы:</strong> {{ review.cons }}</p>
+            <p v-if="review.comment" class="review-text"><strong>Комментарий:</strong> {{ review.comment }}</p>
             <p class="review-date">{{ formatDate(review.created_at) }}</p>
           </li>
         </ul>
@@ -212,16 +181,16 @@
             :disabled="allPage <= 1 || allReviewsLoading"
             @click="goToPage(allPage - 1)"
           >
-            Prev
+            Назад
           </button>
-          <span>Page {{ allPage }} / {{ totalPages }}</span>
+          <span>Страница {{ allPage }} / {{ totalPages }}</span>
           <button
             type="button"
             class="btn btn-neutral"
             :disabled="allPage >= totalPages || allReviewsLoading"
             @click="goToPage(allPage + 1)"
           >
-            Next
+            Вперёд
           </button>
         </div>
       </div>
@@ -230,6 +199,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
@@ -262,6 +232,8 @@ const appearanceStore = useAppearanceStore();
 
 const product = ref<Product | null>(null);
 const qty = ref(1);
+const activeImageIndex = ref(0);
+let hoverCarouselTimer: ReturnType<typeof setInterval> | null = null;
 
 const latestReviews = ref<Review[]>([]);
 const reviewsTotal = ref(0);
@@ -280,10 +252,102 @@ const ratingFilter = ref("");
 const sortFilter = ref<"created_desc" | "created_asc" | "rating_desc" | "rating_asc">("created_desc");
 
 const productPagePreset = computed(() => appearanceStore.productPagePresetConfig);
-const productCardPreset = computed(() => appearanceStore.productCardPresetConfig);
-
 const visibleProductPageBlocks = computed(() => visibleBlocks(productPagePreset.value));
-const visibleProductCardBlocks = computed(() => visibleBlocks(productCardPreset.value));
+
+const normalizeModeToken = (value: unknown, fallback: string) => {
+  const token = String(value || "")
+    .trim()
+    .replace(/_/g, "-");
+  return token || fallback;
+};
+
+const layoutClass = computed(() => `layout-${normalizeModeToken(productPagePreset.value.layout_mode, "media-left")}`);
+const photoClass = computed(() => `photo-${normalizeModeToken(productPagePreset.value.photo_mode, "thumbnails-bottom")}`);
+const mediaModeClass = computed(() =>
+  `media-${normalizeModeToken(productPagePreset.value.photo_mode, "thumbnails-bottom")}`
+);
+const thumbsModeClass = computed(() =>
+  `thumbs-${normalizeModeToken(productPagePreset.value.photo_mode, "thumbnails-bottom")}`
+);
+
+const appendImageUrls = (source: unknown, bucket: Set<string>) => {
+  if (!source) {
+    return;
+  }
+  if (typeof source === "string") {
+    const url = source.trim();
+    if (url) {
+      bucket.add(url);
+    }
+    return;
+  }
+  if (Array.isArray(source)) {
+    source.forEach((entry) => appendImageUrls(entry, bucket));
+    return;
+  }
+  if (typeof source !== "object") {
+    return;
+  }
+  const value = source as Record<string, unknown>;
+  appendImageUrls(value.url, bucket);
+  appendImageUrls(value.src, bucket);
+  appendImageUrls(value.image_url, bucket);
+  appendImageUrls(value.full, bucket);
+  appendImageUrls(value.original, bucket);
+  appendImageUrls(value.large, bucket);
+  appendImageUrls(value.medium, bucket);
+  appendImageUrls(value.small, bucket);
+  appendImageUrls(value.thumbnail, bucket);
+  appendImageUrls(value.data, bucket);
+  appendImageUrls(value.attributes, bucket);
+};
+
+const collectProductImages = (item: Product | null) => {
+  if (!item) {
+    return [] as string[];
+  }
+
+  const payload = item as unknown as Record<string, unknown>;
+  const urls = new Set<string>();
+
+  appendImageUrls(payload.image_url, urls);
+
+  const galleryFields = [
+    "gallery_urls",
+    "images",
+    "image_urls",
+    "gallery",
+    "gallery_images",
+    "image_gallery",
+    "photos",
+    "media",
+    "additional_images"
+  ];
+
+  galleryFields.forEach((field) => appendImageUrls(payload[field], urls));
+
+  if (urls.size === 0) {
+    appendImageUrls(payload.thumbnail_url, urls);
+  }
+
+  return Array.from(urls);
+};
+
+const productImages = computed(() => {
+  return collectProductImages(product.value);
+});
+const activeImageUrl = computed(() => {
+  if (productImages.value.length === 0) {
+    return "";
+  }
+  const safeIndex = Math.min(activeImageIndex.value, productImages.value.length - 1);
+  return productImages.value[safeIndex] || productImages.value[0];
+});
+const thumbnailItems = computed(() =>
+  productImages.value
+    .map((url, index) => ({ url, index }))
+    .filter((item) => item.url && item.url !== activeImageUrl.value)
+);
 
 const totalPages = computed(() => {
   const pages = Math.ceil(allTotal.value / allPageSize.value);
@@ -295,21 +359,19 @@ const hasRatingSummary = computed(
 );
 
 const reviewsCountText = computed(() => {
-  if (reviewsTotal.value <= 0) {
-    return "No reviews";
+  const count = reviewsTotal.value;
+  if (count <= 0) {
+    return "Нет отзывов";
   }
-  return `${reviewsTotal.value} review${reviewsTotal.value === 1 ? "" : "s"}`;
-});
-
-const shortDescription = computed(() => {
-  const text = product.value?.description || "";
-  if (!text) {
-    return "No description";
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return `${count} отзыв`;
   }
-  if (text.length <= 140) {
-    return text;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${count} отзыва`;
   }
-  return `${text.slice(0, 137)}...`;
+  return `${count} отзывов`;
 });
 
 const addToCart = () => {
@@ -317,6 +379,34 @@ const addToCart = () => {
     return;
   }
   cartStore.addToCart(product.value.id, qty.value);
+};
+
+const setActiveImage = (nextIndex: number) => {
+  if (nextIndex < 0 || nextIndex >= productImages.value.length) {
+    return;
+  }
+  activeImageIndex.value = nextIndex;
+};
+
+const stopHoverCarousel = () => {
+  if (!hoverCarouselTimer) {
+    return;
+  }
+  clearInterval(hoverCarouselTimer);
+  hoverCarouselTimer = null;
+};
+
+const startHoverCarousel = () => {
+  if (productPagePreset.value.photo_mode !== "hover_carousel") {
+    return;
+  }
+  if (productImages.value.length <= 1) {
+    return;
+  }
+  stopHoverCarousel();
+  hoverCarouselTimer = setInterval(() => {
+    activeImageIndex.value = (activeImageIndex.value + 1) % productImages.value.length;
+  }, 1200);
 };
 
 const hasDiscount = (item: Product) => {
@@ -376,7 +466,7 @@ const fetchLatestReviews = async () => {
       reviewsTotal.value = Number(response.data?.pagination?.total || 0);
     }
   } catch (err: any) {
-    reviewsError.value = err?.response?.data?.detail || "Failed to load reviews.";
+    reviewsError.value = err?.response?.data?.detail || "Не удалось загрузить отзывы.";
     latestReviews.value = [];
     if (ratingSummary.value.reviews_count <= 0) {
       reviewsTotal.value = 0;
@@ -405,7 +495,7 @@ const fetchAllReviews = async () => {
     allReviews.value = response.data?.results || [];
     allTotal.value = Number(response.data?.pagination?.total || 0);
   } catch (err: any) {
-    allReviewsError.value = err?.response?.data?.detail || "Failed to load reviews.";
+    allReviewsError.value = err?.response?.data?.detail || "Не удалось загрузить отзывы.";
     allReviews.value = [];
     allTotal.value = 0;
   } finally {
@@ -439,6 +529,21 @@ watch([ratingFilter, sortFilter], async () => {
   await fetchAllReviews();
 });
 
+watch(
+  () => product.value?.id,
+  () => {
+    activeImageIndex.value = 0;
+    stopHoverCarousel();
+  }
+);
+
+watch(
+  () => productPagePreset.value.photo_mode,
+  () => {
+    stopHoverCarousel();
+  }
+);
+
 const onReviewSubmitted = async (event: Event) => {
   const payload = (event as CustomEvent<{ productId?: string }>).detail;
   if (!payload?.productId || payload.productId !== product.value?.id) {
@@ -465,6 +570,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener("review-submitted", onReviewSubmitted as EventListener);
+  stopHoverCarousel();
 });
 </script>
 
@@ -482,22 +588,27 @@ onUnmounted(() => {
 
 .product-main {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 320px;
+  grid-template-columns: minmax(360px, 1.15fr) minmax(320px, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.product-main.layout-media-top {
+.product-main.layout-media-top,
+.product-main.layout-media_top {
   grid-template-columns: 1fr;
 }
 
+.product-main.layout-media-left,
+.product-main.layout-media_left {
+  grid-template-columns: minmax(360px, 1.15fr) minmax(320px, 1fr);
+}
+
 .product-main.layout-compact {
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(240px, 320px) minmax(320px, 1fr);
 }
 
 .media-panel,
-.details-panel,
-.buy-panel {
+.details-panel {
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 12px;
@@ -505,8 +616,34 @@ onUnmounted(() => {
   box-shadow: var(--shadow);
 }
 
-.product-main.layout-media-top .buy-panel {
-  max-width: 420px;
+.details-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.media-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.image-stage {
+  min-width: 0;
+}
+
+.media-panel.media-thumbnails-right,
+.media-panel.media-thumbnails_right {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.media-panel.media-thumbnails-right .thumbs,
+.media-panel.media-thumbnails_right .thumbs {
+  margin-top: 0;
 }
 
 .image {
@@ -533,13 +670,32 @@ onUnmounted(() => {
   margin-top: 10px;
 }
 
+.thumbs-thumbnails-right,
 .thumbs-thumbnails_right {
   flex-direction: column;
+  max-height: 480px;
+  overflow: auto;
 }
 
+.thumbs-thumbnails-bottom,
 .thumbs-thumbnails_bottom,
+.thumbs-hover-carousel,
 .thumbs-hover_carousel {
   flex-direction: row;
+}
+
+.thumbs-hover-carousel,
+.thumbs-hover_carousel {
+  display: none;
+}
+
+.thumb-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+  line-height: 0;
+  cursor: pointer;
 }
 
 .thumb {
@@ -596,6 +752,14 @@ onUnmounted(() => {
 .reviews-count-btn {
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.rating-summary-btn + .reviews-count-btn {
+  margin-left: 8px;
+}
+
+.reviews-count-btn + .rating-summary-btn {
+  margin-left: 8px;
 }
 
 .rating-summary-empty {
@@ -751,9 +915,20 @@ onUnmounted(() => {
   margin-top: 12px;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 840px) {
   .product-main {
     grid-template-columns: 1fr;
+  }
+
+  .media-panel.media-thumbnails-right,
+  .media-panel.media-thumbnails_right {
+    grid-template-columns: 1fr;
+  }
+
+  .thumbs-thumbnails-right,
+  .thumbs-thumbnails_right {
+    flex-direction: row;
+    max-height: none;
   }
 }
 </style>

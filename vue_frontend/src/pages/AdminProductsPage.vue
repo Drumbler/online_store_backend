@@ -2,18 +2,18 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Products</h1>
-        <p>Manage catalog products with draft changes.</p>
+        <h1>Товары</h1>
+        <p>Управление товарами каталога с черновыми изменениями.</p>
       </div>
       <div class="toolbar">
-        <button type="button" @click="openCreateModal" :disabled="isBusy">Add</button>
-        <button type="button" @click="openBulkEdit" :disabled="isBusy">Edit (bulk)</button>
-        <button type="button" @click="openBulkDelete" :disabled="isBusy">Delete (bulk)</button>
+        <button type="button" @click="openCreateModal" :disabled="isBusy">Добавить</button>
+        <button type="button" @click="openBulkEdit" :disabled="isBusy">Массовое редактирование</button>
+        <button type="button" @click="openBulkDelete" :disabled="isBusy">Массовое удаление</button>
         <button type="button" @click="openBulkDiscount" :disabled="isBusy">
-          Apply discounts (bulk)
+          Массовое применение скидки
         </button>
         <button type="button" @click="removeBulkDiscount" :disabled="isBusy">
-          Remove discount
+          Убрать скидку
         </button>
       </div>
     </header>
@@ -21,7 +21,7 @@
     <p v-if="toast" class="toast">{{ toast }}</p>
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-if="loading" class="loading">Loading products...</div>
+    <div v-if="loading" class="loading">Загрузка товаров...</div>
 
     <div v-else class="table-wrap">
       <table class="table">
@@ -35,16 +35,16 @@
                 @change="toggleSelectAll"
               />
             </th>
-            <th>Title</th>
-            <th>Slug</th>
-            <th>Description</th>
-            <th>Price</th>
-            <th>Category</th>
-            <th>Visibility</th>
-            <th>Images</th>
-            <th>Discount %</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>Название</th>
+            <th>Слаг</th>
+            <th>Описание</th>
+            <th>Цена</th>
+            <th>Категория</th>
+            <th>Видимость</th>
+            <th>Изображения</th>
+            <th>Скидка %</th>
+            <th>Статус</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -87,7 +87,7 @@
                   type="button"
                   class="icon"
                   :disabled="isRowLocked(row)"
-                  title="Reset slug from title"
+                  title="Обновить slug из названия"
                   @click="resetRowSlug(row)"
                 >
                   ↺
@@ -126,7 +126,7 @@
                 :disabled="isRowLocked(row)"
                 @change="markEdited(row)"
               >
-                <option value="">No category</option>
+                <option value="">Без категории</option>
                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                   {{ cat.title || cat.slug || cat.id }}
                 </option>
@@ -138,13 +138,13 @@
                 :disabled="isRowLocked(row)"
                 @change="markEdited(row)"
               >
-                <option :value="true">Visible</option>
-                <option :value="false">Hidden</option>
+                <option :value="true">Видимый</option>
+                <option :value="false">Скрытый</option>
               </select>
             </td>
             <td>
               <button type="button" class="link" @click="openImages(row)" :disabled="isRowLocked(row)">
-                Images
+                Изображения
               </button>
             </td>
             <td>
@@ -176,7 +176,7 @@
               <button
                 type="button"
                 class="icon danger"
-                title="Mark product for deletion"
+                title="Пометить товар на удаление"
                 @click="confirmDeleteRow(row)"
                 :disabled="isBusy"
               >
@@ -185,7 +185,7 @@
             </td>
           </tr>
           <tr v-if="rows.length === 0">
-            <td colspan="11" class="empty">No products found.</td>
+            <td colspan="11" class="empty">Товары не найдены.</td>
           </tr>
         </tbody>
       </table>
@@ -193,39 +193,39 @@
 
     <footer class="pagination" v-if="pagination.total > 0">
       <button type="button" :disabled="isBusy || pagination.page <= 1" @click="changePage(-1)">
-        Previous
+        Назад
       </button>
       <span>
-        Page {{ pagination.page }} of {{ totalPages }} ({{ pagination.total }} items)
+        Страница {{ pagination.page }} из {{ totalPages }} ({{ pagination.total }} шт.)
       </span>
       <button
         type="button"
         :disabled="isBusy || pagination.page >= totalPages"
         @click="changePage(1)"
       >
-        Next
+        Вперед
       </button>
     </footer>
 
     <div class="action-bar">
       <button type="button" class="secondary" @click="cancelChanges" :disabled="isBusy">
-        Cancel changes
+        Отменить изменения
       </button>
       <button type="button" @click="applyChanges" :disabled="isBusy || !hasDraftChanges">
-        Apply changes
+        Применить изменения
       </button>
     </div>
 
     <div v-if="showCreateModal" class="modal">
       <div class="modal-card">
-        <h2>Create product</h2>
+        <h2>Создать товар</h2>
         <div class="modal-body">
           <label>
-            <span>Title *</span>
+            <span>Название *</span>
             <input v-model="createForm.title" type="text" @input="syncCreateSlug" />
           </label>
           <label>
-            <span>Slug</span>
+            <span>Слаг</span>
             <div class="slug-cell">
               <input
                 v-model="createForm.slug"
@@ -236,7 +236,7 @@
               <button
                 type="button"
                 class="icon"
-                title="Reset slug from title"
+                title="Обновить slug из названия"
                 @click="resetCreateSlug"
               >
                 ↺
@@ -245,156 +245,155 @@
             <p v-if="createSlugError" class="field-error">{{ createSlugError }}</p>
           </label>
           <label>
-            <span>Description</span>
+            <span>Описание</span>
             <textarea v-model="createForm.description" rows="3" />
           </label>
           <label>
-            <span>Price *</span>
+            <span>Цена *</span>
             <input v-model.number="createForm.price" type="number" min="0" step="0.01" />
           </label>
           <label>
-            <span>Category</span>
+            <span>Категория</span>
             <select v-model="createForm.category_id">
-              <option value="">No category</option>
+              <option value="">Без категории</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.title || cat.slug || cat.id }}
               </option>
             </select>
           </label>
           <label>
-            <span>Visibility</span>
+            <span>Видимость</span>
             <select v-model="createForm.publish">
-              <option :value="true">Visible</option>
-              <option :value="false">Hidden</option>
+              <option :value="true">Видимый</option>
+              <option :value="false">Скрытый</option>
             </select>
           </label>
           <div class="images-inline">
-            <span>Images</span>
-            <button type="button" class="link" @click="openImagesForCreate">Attach</button>
+            <span>Изображения</span>
+            <button type="button" class="link" @click="openImagesForCreate">Прикрепить</button>
             <span class="hint">{{ createImagesSummary }}</span>
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeCreateModal">Cancel</button>
-          <button type="button" @click="confirmCreate">Add to draft</button>
+          <button type="button" class="secondary" @click="closeCreateModal">Отмена</button>
+          <button type="button" @click="confirmCreate">Добавить в черновик</button>
         </div>
       </div>
     </div>
 
     <div v-if="showBulkEditModal" class="modal">
       <div class="modal-card">
-        <h2>Bulk edit</h2>
+        <h2>Массовое редактирование</h2>
         <div class="modal-body">
           <label>
-            <span>Category</span>
+            <span>Категория</span>
             <select v-model="bulkEdit.category_id">
-              <option value="__keep">Do not change</option>
-              <option value="">No category</option>
+              <option value="__keep">Не менять</option>
+              <option value="">Без категории</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">
                 {{ cat.title || cat.slug || cat.id }}
               </option>
             </select>
           </label>
           <label>
-            <span>Visibility</span>
+            <span>Видимость</span>
             <select v-model="bulkEdit.visibility">
-              <option value="__keep">Do not change</option>
-              <option value="visible">Visible</option>
-              <option value="hidden">Hidden</option>
+              <option value="__keep">Не менять</option>
+              <option value="visible">Видимый</option>
+              <option value="hidden">Скрытый</option>
             </select>
           </label>
           <div class="bulk-row">
             <label>
-              <span>Change type</span>
+              <span>Тип изменения</span>
               <select v-model="bulkEdit.priceType">
                 <option value="percent">%</option>
                 <option value="fixed">₽</option>
               </select>
             </label>
             <label>
-              <span>Direction</span>
+              <span>Направление</span>
               <select v-model="bulkEdit.priceDirection">
                 <option value="plus">+</option>
                 <option value="minus">−</option>
               </select>
             </label>
             <label>
-              <span>Value</span>
+              <span>Значение</span>
               <input v-model.number="bulkEdit.priceValue" type="number" step="0.01" min="0" />
             </label>
           </div>
           <p v-if="bulkEditError" class="error">{{ bulkEditError }}</p>
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeBulkEdit">Cancel</button>
-          <button type="button" @click="applyBulkEdit">Apply to draft</button>
+          <button type="button" class="secondary" @click="closeBulkEdit">Отмена</button>
+          <button type="button" @click="applyBulkEdit">Применить к черновику</button>
         </div>
       </div>
     </div>
 
     <div v-if="showBulkDeleteModal" class="modal">
       <div class="modal-card">
-        <h2>Delete products</h2>
+        <h2>Удаление товаров</h2>
         <p>
-          Are you sure you want to delete {{ selectedIds.size }} products? This cannot be
-          undone.
+          Вы уверены, что хотите удалить {{ selectedIds.size }} товаров? Это действие необратимо.
         </p>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeBulkDelete">Cancel</button>
-          <button type="button" class="danger" @click="confirmBulkDelete">Delete</button>
+          <button type="button" class="secondary" @click="closeBulkDelete">Отмена</button>
+          <button type="button" class="danger" @click="confirmBulkDelete">Удалить</button>
         </div>
       </div>
     </div>
 
     <div v-if="showBulkDiscountModal" class="modal">
       <div class="modal-card">
-        <h2>Apply discount</h2>
+        <h2>Применение скидки</h2>
         <div class="modal-body">
           <label>
-            <span>Discount percent (0-100)</span>
+            <span>Процент скидки (0-100)</span>
             <input v-model.number="bulkDiscount" type="number" min="0" max="100" step="0.1" />
           </label>
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeBulkDiscount">Cancel</button>
-          <button type="button" @click="confirmBulkDiscount">Apply</button>
+          <button type="button" class="secondary" @click="closeBulkDiscount">Отмена</button>
+          <button type="button" @click="confirmBulkDiscount">Применить</button>
         </div>
       </div>
     </div>
 
     <div v-if="showDeleteModal" class="modal">
       <div class="modal-card">
-        <h2>Delete product</h2>
+        <h2>Удаление товара</h2>
         <p>
-          Are you sure you want to delete "{{ deleteTarget?.title }}"? This cannot be undone.
+          Вы уверены, что хотите удалить «{{ deleteTarget?.title }}»? Это действие необратимо.
         </p>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeDeleteModal">Cancel</button>
-          <button type="button" class="danger" @click="confirmDeleteSingle">Delete</button>
+          <button type="button" class="secondary" @click="closeDeleteModal">Отмена</button>
+          <button type="button" class="danger" @click="confirmDeleteSingle">Удалить</button>
         </div>
       </div>
     </div>
 
     <div v-if="showImagesModal" class="modal">
       <div class="modal-card wide">
-        <h2>Images</h2>
+        <h2>Изображения</h2>
         <div class="modal-body">
           <div class="images-grid">
             <div v-for="(img, idx) in imageDraft" :key="img.id" class="image-tile">
-              <img :src="img.preview" alt="Product image" />
+              <img :src="img.preview" alt="Изображение товара" />
               <div class="image-actions">
                 <button type="button" class="link" @click="setThumbnail(idx)">
-                  {{ idx === thumbnailIndex ? "Thumbnail" : "Make thumbnail" }}
+                  {{ idx === thumbnailIndex ? "Миниатюра" : "Сделать миниатюрой" }}
                 </button>
-                <button type="button" class="link danger" @click="removeImage(idx)">Remove</button>
+                <button type="button" class="link danger" @click="removeImage(idx)">Удалить</button>
               </div>
             </div>
-            <div v-if="imageDraft.length === 0" class="empty">No images attached.</div>
+            <div v-if="imageDraft.length === 0" class="empty">Изображения не добавлены.</div>
           </div>
           <input ref="fileInput" type="file" multiple accept="image/*" @change="handleImageFiles" />
         </div>
         <div class="modal-actions">
-          <button type="button" class="secondary" @click="closeImagesModal">Close</button>
+          <button type="button" class="secondary" @click="closeImagesModal">Закрыть</button>
         </div>
       </div>
     </div>
@@ -402,6 +401,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 
 import { adminApiClient } from "../api/adminClient";
@@ -505,7 +505,7 @@ const hasDraftChanges = computed(() =>
 );
 
 const createImagesSummary = computed(() =>
-  createForm.value.images.length > 0 ? `${createForm.value.images.length} attached` : "None"
+  createForm.value.images.length > 0 ? `${createForm.value.images.length} прикреплено` : "Нет"
 );
 
 const showToast = (message: string) => {
@@ -569,10 +569,10 @@ const slugFromTitle = (value: string) => {
 
 const validateSlug = (slug: string) => {
   if (!slug) {
-    return "Slug is required.";
+    return "Слаг обязателен.";
   }
   if (!/^[a-z0-9-]+$/.test(slug)) {
-    return "Slug can contain only latin letters, digits and '-'.";
+    return "Слаг может содержать только латинские буквы, цифры и '-'.";
   }
   return null;
 };
@@ -585,9 +585,9 @@ const applyDiscount = (price: number, discount: number) =>
 const isRowLocked = (row: ProductRow) => row.status === "deleted" || isBusy.value;
 
 const statusLabel = (row: ProductRow) => {
-  if (row.status === "new") return "new";
-  if (row.status === "deleted") return "to delete";
-  if (row.status === "edited") return "edited";
+  if (row.status === "new") return "новый";
+  if (row.status === "deleted") return "к удалению";
+  if (row.status === "edited") return "изменен";
   return "";
 };
 
@@ -652,11 +652,11 @@ const closeCreateModal = () => {
 
 const confirmCreate = () => {
   if (!createForm.value.title.trim()) {
-    showToast("Title is required.");
+    showToast("Название обязательно.");
     return;
   }
   if (createForm.value.price <= 0) {
-    showToast("Price must be greater than 0.");
+    showToast("Цена должна быть больше 0.");
     return;
   }
   createForm.value.slug = slugFromTitle(createForm.value.slug || createForm.value.title);
@@ -725,7 +725,7 @@ const markEdited = (row: ProductRow) => {
 
 const openBulkEdit = () => {
   if (selectedIds.value.size === 0) {
-    showToast("No products selected.");
+    showToast("Товары не выбраны.");
     return;
   }
   bulkEdit.value = {
@@ -750,7 +750,7 @@ const applyBulkEdit = () => {
     (row) => selectedIds.value.has(row.id) && row.status !== "deleted"
   );
   if (targets.length === 0) {
-    showToast("No products selected.");
+    showToast("Товары не выбраны.");
     closeBulkEdit();
     return;
   }
@@ -765,7 +765,7 @@ const applyBulkEdit = () => {
       return Number((row.price + direction * bulkEdit.value.priceValue).toFixed(2));
     });
     if (updatedPrices.some((price) => price < 0)) {
-      bulkEditError.value = "Resulting price cannot be negative.";
+      bulkEditError.value = "Итоговая цена не может быть отрицательной.";
       return;
     }
     targets.forEach((row, idx) => {
@@ -794,7 +794,7 @@ const applyBulkEdit = () => {
 
 const openBulkDelete = () => {
   if (selectedIds.value.size === 0) {
-    showToast("No products selected.");
+    showToast("Товары не выбраны.");
     return;
   }
   showBulkDeleteModal.value = true;
@@ -816,7 +816,7 @@ const confirmBulkDelete = () => {
 
 const openBulkDiscount = () => {
   if (selectedIds.value.size === 0) {
-    showToast("No products selected.");
+    showToast("Товары не выбраны.");
     return;
   }
   bulkDiscount.value = 0;
@@ -829,7 +829,7 @@ const closeBulkDiscount = () => {
 
 const confirmBulkDiscount = () => {
   if (bulkDiscount.value < 0 || bulkDiscount.value > 100) {
-    showToast("Discount must be between 0 and 100.");
+    showToast("Скидка должна быть от 0 до 100.");
     return;
   }
   rows.value.forEach((row) => {
@@ -843,7 +843,7 @@ const confirmBulkDiscount = () => {
 
 const removeBulkDiscount = () => {
   if (selectedIds.value.size === 0) {
-    showToast("No products selected.");
+    showToast("Товары не выбраны.");
     return;
   }
   rows.value.forEach((row) => {
@@ -986,7 +986,7 @@ const loadProducts = async () => {
     selectedIds.value.clear();
   } catch (err) {
     console.error(err);
-    error.value = "Failed to load products.";
+    error.value = "Не удалось загрузить товары.";
   } finally {
     loading.value = false;
   }
@@ -1003,7 +1003,7 @@ const loadCategories = async () => {
     categories.value = response.data.results || [];
   } catch (err) {
     console.error(err);
-    showToast("Failed to load categories.");
+    showToast("Не удалось загрузить категории.");
   }
 };
 
@@ -1039,7 +1039,7 @@ const getSlugConflictMessage = (err: any) => {
   if (typeof raw === "string" && raw.trim()) {
     return raw.trim();
   }
-  return "This slug is already in use.";
+  return "Этот slug уже используется.";
 };
 
 const applyChanges = async () => {
@@ -1052,8 +1052,8 @@ const applyChanges = async () => {
     const deleted = rows.value.filter((row) => row.status === "deleted");
 
     if (!ensureValidSlugs([...created, ...updated])) {
-      showToast("Please fix slug errors before applying changes.");
-      error.value = "Validation failed.";
+      showToast("Исправьте ошибки slug перед применением изменений.");
+      error.value = "Ошибка валидации.";
       return;
     }
 
@@ -1075,8 +1075,8 @@ const applyChanges = async () => {
       } catch (err: any) {
         if (isSlugConflictResponse(err)) {
           slugErrors.value[row.id] = getSlugConflictMessage(err);
-          showToast("Slug already in use");
-          error.value = "Slug already in use.";
+          showToast("Слаг уже используется");
+          error.value = "Слаг уже используется.";
           return;
         }
         throw err;
@@ -1101,8 +1101,8 @@ const applyChanges = async () => {
       } catch (err: any) {
         if (isSlugConflictResponse(err)) {
           slugErrors.value[row.id] = getSlugConflictMessage(err);
-          showToast("Slug already in use");
-          error.value = "Slug already in use.";
+          showToast("Слаг уже используется");
+          error.value = "Слаг уже используется.";
           return;
         }
         throw err;
@@ -1115,14 +1115,14 @@ const applyChanges = async () => {
     }
 
     if (imageUploadSkipped) {
-      showToast("Image upload not implemented yet. Image changes were skipped.");
+      showToast("Загрузка изображений пока не реализована. Изменения изображений пропущены.");
     } else {
-      showToast("Changes applied.");
+      showToast("Изменения применены.");
     }
     await loadProducts();
   } catch (err) {
     console.error(err);
-    error.value = "Failed to apply changes. Draft kept for retry.";
+    error.value = "Не удалось применить изменения. Черновик сохранен для повторной попытки.";
   } finally {
     committing.value = false;
   }
@@ -1214,7 +1214,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.table input,
+.table input:not([type="checkbox"]):not([type="radio"]),
 .table select,
 .table textarea {
   width: 100%;

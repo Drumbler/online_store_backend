@@ -1,8 +1,9 @@
+"""API управления профилем пользователя (личный кабинет)."""
+
 from django.conf import settings
 from django.core import signing
 from django.core.mail import send_mail
 from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,13 +19,16 @@ DEFAULT_EMAIL_VERIFY_MAX_AGE = 60 * 60 * 24
 
 
 class AccountMeView(APIView):
+    """Чтение и обновление базовых полей профиля текущего пользователя."""
+
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
     def get(self, request):
+        """Вернуть текущие данные профиля."""
         return Response(AccountMeSerializer(request.user).data)
 
     def patch(self, request):
+        """Обновить редактируемые поля профиля (например, имя)."""
         serializer = AccountNameUpdateSerializer(instance=request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -32,10 +36,12 @@ class AccountMeView(APIView):
 
 
 class AccountEmailSetView(APIView):
+    """Установка или изменение email текущего пользователя."""
+
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
     def post(self, request):
+        """Сохранить новый email и пометить его как неподтвержденный."""
         serializer = EmailSetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
@@ -47,10 +53,12 @@ class AccountEmailSetView(APIView):
 
 
 class AccountEmailRequestVerificationView(APIView):
+    """Запросить письмо со ссылкой подтверждения email."""
+
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
     def post(self, request):
+        """Сформировать токен верификации и отправить письмо пользователю."""
         user = request.user
         if not user.email:
             return Response({"detail": "Email is not set."}, status=status.HTTP_400_BAD_REQUEST)
@@ -70,10 +78,12 @@ class AccountEmailRequestVerificationView(APIView):
 
 
 class AccountEmailVerifyView(APIView):
+    """Подтвердить email по токену, полученному из письма."""
+
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
     def post(self, request):
+        """Проверить токен верификации и активировать флаг подтверждения email."""
         serializer = EmailVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         token = serializer.validated_data["token"]
@@ -94,10 +104,12 @@ class AccountEmailVerifyView(APIView):
 
 
 class AccountChangePasswordView(APIView):
+    """Изменение пароля текущего пользователя."""
+
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
     def post(self, request):
+        """Проверить текущий пароль и сохранить новый."""
         serializer = ChangePasswordSerializer(data=request.data, context={"user": request.user})
         serializer.is_valid(raise_exception=True)
         user = request.user

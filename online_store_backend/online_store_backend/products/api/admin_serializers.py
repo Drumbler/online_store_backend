@@ -1,8 +1,12 @@
+"""Сериализаторы для админского API каталога."""
+
 from django.utils.text import slugify
 from rest_framework import serializers
 
 
 class CategoryAdminSerializer(serializers.Serializer):
+    """Сериализатор категории для админского списка."""
+
     id = serializers.CharField()
     slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
@@ -12,16 +16,22 @@ class CategoryAdminSerializer(serializers.Serializer):
 
 
 class CategoryDiscountApplySerializer(serializers.Serializer):
+    """Payload для массового назначения скидки в категории."""
+
     discount_percent = serializers.IntegerField(min_value=0, max_value=100)
 
 
 class ProductAdminCategorySerializer(serializers.Serializer):
+    """Короткое представление категории в товаре админки."""
+
     id = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     title = serializers.CharField(allow_null=True, allow_blank=True, required=False)
 
 
 class ProductAdminSerializer(serializers.Serializer):
+    """Сериализатор товара в админских ответах."""
+
     id = serializers.CharField()
     slug = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     title = serializers.CharField()
@@ -33,10 +43,13 @@ class ProductAdminSerializer(serializers.Serializer):
 
 
 class CategoryUpsertSerializer(serializers.Serializer):
+    """Входные данные для создания/обновления категории."""
+
     title = serializers.CharField(required=True, allow_blank=False)
     slug = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate(self, attrs):
+        """Нормализует slug и генерирует его из title при необходимости."""
         slug_provided = "slug" in attrs
         title = attrs.get("title")
         slug = attrs.get("slug") if slug_provided else None
@@ -57,6 +70,8 @@ class CategoryUpsertSerializer(serializers.Serializer):
 
 
 class ProductUpsertSerializer(serializers.Serializer):
+    """Входные данные для создания товара в админке."""
+
     title = serializers.CharField(required=True, allow_blank=False)
     slug = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -67,6 +82,7 @@ class ProductUpsertSerializer(serializers.Serializer):
     discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
     def validate(self, attrs):
+        """Нормализует slug и генерирует его из title при необходимости."""
         slug_provided = "slug" in attrs
         title = attrs.get("title")
         slug = attrs.get("slug") if slug_provided else None
@@ -87,6 +103,8 @@ class ProductUpsertSerializer(serializers.Serializer):
 
 
 class ProductUpdateSerializer(serializers.Serializer):
+    """Частичное обновление товара в админке."""
+
     title = serializers.CharField(required=False, allow_blank=False)
     slug = serializers.CharField(required=False, allow_blank=False)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -97,6 +115,8 @@ class ProductUpdateSerializer(serializers.Serializer):
 
 
 class BulkUpdateOperationSerializer(serializers.Serializer):
+    """Описание операции массового изменения набора товаров."""
+
     type = serializers.ChoiceField(
         choices=(
             "set_category",
@@ -110,6 +130,8 @@ class BulkUpdateOperationSerializer(serializers.Serializer):
 
 
 class BulkUpdateSerializer(serializers.Serializer):
+    """Payload массового обновления товаров."""
+
     product_ids = serializers.ListField(
         child=serializers.CharField(allow_blank=False),
         allow_empty=False,
@@ -117,11 +139,13 @@ class BulkUpdateSerializer(serializers.Serializer):
     operation = BulkUpdateOperationSerializer()
 
     def validate_product_ids(self, value):
+        """Ограничивает размер bulk-операции по количеству товаров."""
         if len(value) > 100:
             raise serializers.ValidationError("Maximum 100 product_ids allowed.")
         return value
 
     def validate(self, attrs):
+        """Проверяет корректность параметров выбранной bulk-операции."""
         operation = attrs.get("operation") or {}
         op_type = operation.get("type")
         value = operation.get("value")

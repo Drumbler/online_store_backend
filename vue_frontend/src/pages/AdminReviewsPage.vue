@@ -2,14 +2,14 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Reviews</h1>
-        <p>Moderate review visibility with draft changes.</p>
+        <h1>Отзывы</h1>
+        <p>Модерация видимости отзывов с черновыми изменениями.</p>
       </div>
       <div class="toolbar">
-        <button type="button" class="icon" title="Hide selected" :disabled="isBusy" @click="hideSelected">
+        <button type="button" class="icon" title="Скрыть выбранные" :disabled="isBusy" @click="hideSelected">
           🙈
         </button>
-        <button type="button" class="icon" title="Unhide selected" :disabled="isBusy" @click="unhideSelected">
+        <button type="button" class="icon" title="Показать выбранные" :disabled="isBusy" @click="unhideSelected">
           👁
         </button>
       </div>
@@ -20,13 +20,13 @@
 
     <div class="filters">
       <label>
-        <span>Search</span>
-        <input v-model="searchQuery" type="text" placeholder="Comment, author, order, product..." :disabled="isBusy" />
+        <span>Поиск</span>
+        <input v-model="searchQuery" type="text" placeholder="Комментарий, автор, заказ, товар..." :disabled="isBusy" />
       </label>
       <label>
-        <span>Rating</span>
+        <span>Рейтинг</span>
         <select v-model="ratingFilter" :disabled="isBusy">
-          <option value="">All</option>
+          <option value="">Все</option>
           <option value="4">4★+</option>
           <option value="3">3★+</option>
           <option value="2">2★+</option>
@@ -34,26 +34,26 @@
         </select>
       </label>
       <label>
-        <span>Status</span>
+        <span>Статус</span>
         <select v-model="statusFilter" :disabled="isBusy">
-          <option value="all">All</option>
-          <option value="true">Published</option>
-          <option value="false">Hidden</option>
+          <option value="all">Все</option>
+          <option value="true">Опубликован</option>
+          <option value="false">Скрыт</option>
         </select>
       </label>
       <label>
-        <span>Sort</span>
+        <span>Сортировка</span>
         <select v-model="sortFilter" :disabled="isBusy">
-          <option value="created_desc">Newest</option>
-          <option value="created_asc">Oldest</option>
-          <option value="rating_desc">Rating: high to low</option>
-          <option value="rating_asc">Rating: low to high</option>
+          <option value="created_desc">Сначала новые</option>
+          <option value="created_asc">Сначала старые</option>
+          <option value="rating_desc">Рейтинг: высокий к низкому</option>
+          <option value="rating_asc">Рейтинг: низкий к высокому</option>
         </select>
       </label>
-      <button type="button" @click="applyFilters" :disabled="isBusy">Apply</button>
+      <button type="button" @click="applyFilters" :disabled="isBusy">Применить</button>
     </div>
 
-    <div v-if="loading" class="loading">Loading reviews...</div>
+    <div v-if="loading" class="loading">Загрузка отзывов...</div>
 
     <div v-else class="table-wrap">
       <table class="table">
@@ -67,12 +67,12 @@
                 @change="toggleSelectAll"
               />
             </th>
-            <th>Product</th>
-            <th>Rating</th>
-            <th>Author</th>
-            <th>Date</th>
-            <th>Published</th>
-            <th>Content</th>
+            <th>Товар</th>
+            <th>Рейтинг</th>
+            <th>Автор</th>
+            <th>Дата</th>
+            <th>Опубликован</th>
+            <th>Содержимое</th>
           </tr>
         </thead>
         <tbody>
@@ -88,7 +88,7 @@
             <td>
               <div class="product-cell">
                 <img v-if="row.product_image_url" :src="row.product_image_url" :alt="row.product_title || row.product_id" />
-                <div v-else class="thumb-fallback">No image</div>
+                <div v-else class="thumb-fallback">Нет изображения</div>
                 <div class="product-meta">
                   <strong>{{ row.product_title || row.product_id }}</strong>
                   <span class="muted">{{ row.product_id }}</span>
@@ -102,7 +102,7 @@
               </div>
             </td>
             <td>
-              {{ row.is_anonymous ? "Anonymous" : row.author_display_name }}
+              {{ row.is_anonymous ? "Аноним" : row.author_display_name }}
             </td>
             <td>{{ formatDate(row.created_at) }}</td>
             <td>
@@ -116,14 +116,14 @@
             <td>
               <div class="content-cell">
                 <span class="preview">{{ previewText(row) }}</span>
-                <button type="button" class="icon" title="Expand" :disabled="isBusy" @click="openContentModal(row)">
+                <button type="button" class="icon" title="Развернуть" :disabled="isBusy" @click="openContentModal(row)">
                   ⤢
                 </button>
               </div>
             </td>
           </tr>
           <tr v-if="draftReviews.length === 0">
-            <td colspan="7" class="empty">No reviews found.</td>
+            <td colspan="7" class="empty">Отзывы не найдены.</td>
           </tr>
         </tbody>
       </table>
@@ -131,35 +131,35 @@
 
     <footer class="pagination" v-if="pagination.total > 0">
       <button type="button" :disabled="isBusy || pagination.page <= 1" @click="changePage(-1)">
-        Previous
+        Назад
       </button>
       <span>
-        Page {{ pagination.page }} of {{ totalPages }} ({{ pagination.total }} items)
+        Страница {{ pagination.page }} из {{ totalPages }} ({{ pagination.total }} шт.)
       </span>
       <button type="button" :disabled="isBusy || pagination.page >= totalPages" @click="changePage(1)">
-        Next
+        Вперед
       </button>
     </footer>
 
     <div class="action-bar">
       <button type="button" class="secondary" :disabled="isBusy" @click="cancelChanges">
-        Cancel changes
+        Отменить изменения
       </button>
       <button type="button" :disabled="isBusy || !hasDraftChanges" @click="applyChanges">
-        Apply changes
+        Применить изменения
       </button>
     </div>
 
     <div v-if="expandedReview" class="modal" @click.self="expandedReview = null">
       <div class="modal-card">
-        <h2>Review content</h2>
-        <p><strong>Product:</strong> {{ expandedReview.product_title || expandedReview.product_id }}</p>
-        <p><strong>Author:</strong> {{ expandedReview.author_display_name }}</p>
-        <p><strong>Pros:</strong> {{ expandedReview.pros || "—" }}</p>
-        <p><strong>Cons:</strong> {{ expandedReview.cons || "—" }}</p>
-        <p><strong>Comment:</strong> {{ expandedReview.comment || "—" }}</p>
+        <h2>Содержимое отзыва</h2>
+        <p><strong>Товар:</strong> {{ expandedReview.product_title || expandedReview.product_id }}</p>
+        <p><strong>Автор:</strong> {{ expandedReview.author_display_name }}</p>
+        <p><strong>Плюсы:</strong> {{ expandedReview.pros || "—" }}</p>
+        <p><strong>Минусы:</strong> {{ expandedReview.cons || "—" }}</p>
+        <p><strong>Комментарий:</strong> {{ expandedReview.comment || "—" }}</p>
         <div class="modal-actions">
-          <button type="button" @click="expandedReview = null">Close</button>
+          <button type="button" @click="expandedReview = null">Закрыть</button>
         </div>
       </div>
     </div>
@@ -167,6 +167,7 @@
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 
 import { adminApiClient } from "../api/adminClient";
@@ -258,7 +259,7 @@ const fetchReviews = async (page = pagination.value.page) => {
     pagination.value = payload?.pagination || pagination.value;
     selectedIds.value.clear();
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to load reviews.";
+    error.value = err?.response?.data?.detail || "Не удалось загрузить отзывы.";
   } finally {
     loading.value = false;
   }
@@ -303,7 +304,7 @@ const togglePublished = (id: number) => {
 
 const setSelectedPublished = (value: boolean) => {
   if (selectedIds.value.size === 0) {
-    showToast("No reviews selected");
+    showToast("Отзывы не выбраны");
     return;
   }
   draftReviews.value.forEach((row) => {
@@ -351,9 +352,9 @@ const applyChanges = async () => {
       await adminApiClient.post("/admin/reviews/bulk/", { ids: toHide, is_published: false });
     }
     await fetchReviews(pagination.value.page);
-    showToast("Changes applied.");
+    showToast("Изменения применены.");
   } catch (err: any) {
-    error.value = err?.response?.data?.detail || "Failed to apply changes.";
+    error.value = err?.response?.data?.detail || "Не удалось применить изменения.";
   } finally {
     committing.value = false;
   }

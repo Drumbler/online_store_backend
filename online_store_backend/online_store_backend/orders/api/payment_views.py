@@ -1,3 +1,5 @@
+"""API оплаты: выбор провайдера, создание платежа и обработка webhook."""
+
 import logging
 from decimal import Decimal
 
@@ -25,21 +27,26 @@ logger = logging.getLogger(__name__)
 
 
 class InvalidPaymentProviderResponseError(Exception):
-    """Raised when provider returns malformed payment payload."""
+    """Исключение для невалидного ответа провайдера оплаты."""
 
 
 class CreatePaymentSerializer(serializers.Serializer):
+    """Валидатор запроса на создание платежа по заказу."""
+
     order_number = serializers.CharField()
     order_secret = serializers.CharField(required=False, allow_blank=False)
     provider_id = serializers.CharField()
 
 
 class PaymentWebhookSerializer(serializers.Serializer):
+    """Валидатор входящих webhook-событий от провайдера оплаты."""
+
     external_id = serializers.CharField()
     status = serializers.ChoiceField(choices=[PaymentStatus.SUCCEEDED, PaymentStatus.FAILED])
 
 
 def _resolve_order_for_payment(request, order_number: str, order_secret: str | None):
+    """Найти заказ для оплаты с учетом режима гостя и авторизованного пользователя."""
     try:
         order_id = int(order_number)
     except (TypeError, ValueError):
@@ -63,9 +70,12 @@ def _resolve_order_for_payment(request, order_number: str, order_secret: str | N
 
 
 class CheckoutPaymentMethodsView(APIView):
+    """Вернуть доступные способы оплаты для checkout."""
+
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Получить список активных платежных провайдеров."""
         providers = get_payment_providers()
         enabled_configs = IntegrationConfig.objects.filter(kind=IntegrationKind.PAYMENT, enabled=True)
 
@@ -86,9 +96,12 @@ class CheckoutPaymentMethodsView(APIView):
 
 
 class PaymentCreateView(APIView):
+    """Создать платеж для заказа с учетом идемпотентности и статусов."""
+
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Инициировать платеж у провайдера и вернуть платежную ссылку."""
         serializer = CreatePaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -220,9 +233,12 @@ class PaymentCreateView(APIView):
 
 
 class PaymentWebhookView(APIView):
+    """Обработать статус платежа и синхронизировать статус заказа."""
+
     permission_classes = [AllowAny]
 
     def post(self, request, provider_id):
+        """Применить входящий webhook-событие к соответствующему платежу."""
         serializer = PaymentWebhookSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data

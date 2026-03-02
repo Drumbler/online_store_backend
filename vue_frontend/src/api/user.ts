@@ -1,4 +1,6 @@
+/** API-методы для авторизации, профиля и личного кабинета пользователя. */
 import axios from "axios";
+import { getRefreshToken, installJwtInterceptors } from "./jwtAuth";
 
 export const userApiClient = axios.create({
   baseURL: "/api",
@@ -7,14 +9,7 @@ export const userApiClient = axios.create({
   }
 });
 
-userApiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("authToken");
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = `Token ${token}`;
-  }
-  return config;
-});
+installJwtInterceptors(userApiClient);
 
 export type RegisterPayload = {
   username: string;
@@ -27,15 +22,25 @@ export type LoginPayload = {
   password: string;
 };
 
+export type JwtAuthPayload = {
+  access: string;
+  refresh: string;
+};
+
 export const registerUser = (payload: RegisterPayload) =>
   userApiClient.post("/auth/register/", payload);
 
+/** Возвращает JWT-пару `{access, refresh}`. */
 export const loginUser = (payload: LoginPayload) =>
-  userApiClient.post("/auth/login/", payload);
+  userApiClient.post<JwtAuthPayload>("/auth/jwt/create/", payload);
 
 export const fetchMe = () => userApiClient.get("/auth/me/");
 
-export const logoutUser = () => userApiClient.post("/auth/logout/");
+export const logoutUser = () => {
+  // На backend передаем refresh, если он есть, для корректного server-side logout.
+  const refresh = getRefreshToken();
+  return userApiClient.post("/auth/logout/", refresh ? { refresh } : {});
+};
 
 export const getUserOrders = () => userApiClient.get("/orders/");
 

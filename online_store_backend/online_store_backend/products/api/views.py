@@ -1,3 +1,5 @@
+"""Публичные API viewset'ы каталога товаров и категорий."""
+
 import logging
 from urllib.parse import urlencode
 
@@ -29,6 +31,7 @@ ALLOWED_ORDERING = {"price", "-price", "title", "-title"}
 
 
 def _positive_int(value, default):
+    """Преобразует значение в положительное целое или возвращает default."""
     try:
         value = int(value)
     except (TypeError, ValueError):
@@ -39,6 +42,7 @@ def _positive_int(value, default):
 
 
 def _parse_products_query_params(request):
+    """Валидирует query-параметры списка товаров."""
     errors = []
     raw_page = request.query_params.get("page")
     raw_page_size = request.query_params.get("page_size")
@@ -90,6 +94,7 @@ def _parse_products_query_params(request):
 
 
 def _build_products_strapi_params(validated):
+    """Собирает словарь параметров для запроса в Strapi."""
     params = {
         "pagination[page]": validated["page"],
         "pagination[pageSize]": validated["page_size"],
@@ -114,6 +119,7 @@ def _build_products_strapi_params(validated):
 
 
 def _products_cache_key(validated):
+    """Формирует ключ кэша для выдачи списка товаров."""
     parts = [
         f"page={validated['page']}",
         f"page_size={validated['page_size']}",
@@ -125,6 +131,7 @@ def _products_cache_key(validated):
 
 
 def _build_cache_key(prefix, query_params):
+    """Строит детерминированный cache key по query-параметрам."""
     items = []
     for key, values in query_params.lists():
         for value in values:
@@ -135,10 +142,13 @@ def _build_cache_key(prefix, query_params):
 
 
 class ProductViewSet(ViewSet):
+    """Viewset публичных эндпоинтов товаров."""
+
     permission_classes = [AllowAny]
     serializer_class = ProductSerializer
 
     def list(self, request):
+        """Возвращает список товаров с пагинацией/поиском/сортировкой."""
         validated, error = _parse_products_query_params(request)
         if error:
             return Response({"detail": error}, status=status.HTTP_400_BAD_REQUEST)
@@ -165,6 +175,7 @@ class ProductViewSet(ViewSet):
         return Response(payload, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
+        """Возвращает детальную карточку товара по ID."""
         cache_key = f"products:detail:{pk}"
         cached = cache.get(cache_key)
         if cached:
@@ -186,6 +197,7 @@ class ProductViewSet(ViewSet):
 
     @action(detail=True, methods=["post"], url_path="track-view")
     def track_view(self, request, pk=None):
+        """Сохраняет событие просмотра товара для аналитики."""
         product_id = str(pk or "").strip()
         if not product_id:
             return Response({"detail": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -194,6 +206,7 @@ class ProductViewSet(ViewSet):
 
     @action(detail=False, methods=["get"], url_path=r"by-slug/(?P<slug>[^/.]+)")
     def by_slug(self, request, slug=None):
+        """Возвращает товар по slug."""
         if not slug:
             return Response({"detail": "Slug is required."}, status=status.HTTP_400_BAD_REQUEST)
         cache_key = f"products:by-slug:{slug}"
@@ -217,10 +230,13 @@ class ProductViewSet(ViewSet):
 
 
 class CategoryViewSet(ViewSet):
+    """Viewset публичных эндпоинтов категорий."""
+
     permission_classes = [AllowAny]
     serializer_class = CategorySerializer
 
     def list(self, request):
+        """Возвращает список категорий с пагинацией и кэшированием."""
         cache_key = _build_cache_key("categories:list", request.query_params)
         cached = cache.get(cache_key)
         if cached:
@@ -243,6 +259,7 @@ class CategoryViewSet(ViewSet):
         return Response(payload, status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
+        """Возвращает категорию по ID."""
         cache_key = f"categories:detail:{pk}"
         cached = cache.get(cache_key)
         if cached:

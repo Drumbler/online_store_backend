@@ -2,12 +2,12 @@
   <section class="page">
     <header class="heading">
       <div>
-        <h1>Users</h1>
-        <p>Manage access and status for store users.</p>
+        <h1>Пользователи</h1>
+        <p>Управление доступом и статусом пользователей магазина.</p>
       </div>
       <div class="controls">
         <label class="field">
-          <span>Page size</span>
+          <span>Размер страницы</span>
           <select v-model.number="pageSize" :disabled="loading">
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -19,19 +19,19 @@
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <div v-if="loading" class="loading">Loading users...</div>
+    <div v-if="loading" class="loading">Загрузка пользователей...</div>
 
     <div v-else class="table-wrap">
       <table class="table">
         <thead>
           <tr>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Date joined</th>
-            <th>Last login</th>
-            <th>Actions</th>
+            <th>Логин</th>
+            <th>Эл. почта</th>
+            <th>Роль</th>
+            <th>Статус</th>
+            <th>Дата регистрации</th>
+            <th>Последний вход</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -44,8 +44,8 @@
                 :disabled="isBlocked(user) || isUpdating(user.id)"
                 @change="handleRoleChange(user)"
               >
-                <option :value="false">User</option>
-                <option :value="true">Admin</option>
+                <option :value="false">Пользователь</option>
+                <option :value="true">Администратор</option>
               </select>
             </td>
             <td>
@@ -54,20 +54,20 @@
                 :disabled="isBlocked(user) || isUpdating(user.id)"
                 @change="handleStatusChange(user)"
               >
-                <option :value="true">Active</option>
-                <option :value="false">Blocked</option>
+                <option :value="true">Активен</option>
+                <option :value="false">Заблокирован</option>
               </select>
             </td>
             <td>{{ formatDate(user.date_joined) }}</td>
             <td>{{ formatDate(user.last_login) }}</td>
             <td class="actions">
-              <span v-if="user.is_superuser" class="badge">Superuser</span>
-              <span v-else-if="isSelf(user)" class="badge">You</span>
-              <span v-else class="badge subtle">Editable</span>
+              <span v-if="user.is_superuser" class="badge">Суперпользователь</span>
+              <span v-else-if="isSelf(user)" class="badge">Вы</span>
+              <span v-else class="badge subtle">Можно редактировать</span>
             </td>
           </tr>
           <tr v-if="users.length === 0">
-            <td colspan="7" class="empty">No users found.</td>
+            <td colspan="7" class="empty">Пользователи не найдены.</td>
           </tr>
         </tbody>
       </table>
@@ -75,21 +75,22 @@
 
     <footer class="pagination">
       <button type="button" :disabled="loading || page <= 1" @click="changePage(page - 1)">
-        Previous
+        Назад
       </button>
-      <span>Page {{ page }} of {{ totalPages }}</span>
+      <span>Страница {{ page }} из {{ totalPages }}</span>
       <button
         type="button"
         :disabled="loading || page >= totalPages"
         @click="changePage(page + 1)"
       >
-        Next
+        Вперед
       </button>
     </footer>
   </section>
 </template>
 
 <script setup lang="ts">
+/** Логика страницы и обработчики UI состояния. */
 import { computed, onMounted, ref } from "vue";
 
 import { adminApiClient } from "../api/adminClient";
@@ -146,7 +147,7 @@ const loadUsers = async () => {
     total.value = response.data.pagination?.total ?? users.value.length;
   } catch (err) {
     console.error(err);
-    error.value = "Failed to load users. Please try again.";
+    error.value = "Не удалось загрузить пользователей. Попробуйте снова.";
   } finally {
     loading.value = false;
   }
@@ -169,7 +170,7 @@ const updateUser = async (user: AdminUser, payload: Partial<AdminUser>, revert: 
   } catch (err) {
     console.error(err);
     revert();
-    error.value = "Update failed. Changes were reverted.";
+    error.value = "Не удалось обновить пользователя. Изменения были отменены.";
   } finally {
     updatingIds.value.delete(user.id);
   }

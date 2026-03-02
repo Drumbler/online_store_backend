@@ -1,3 +1,5 @@
+"""Модели настроек внешнего вида витрины и баннеров."""
+
 from django.core.validators import MaxValueValidator
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -6,34 +8,46 @@ from .validators import validate_logo_file
 
 
 class ThemeMode(models.TextChoices):
+    """Поддерживаемые режимы темы витрины."""
+
     LIGHT = "light", "Light"
     DARK = "dark", "Dark"
 
 
 class PresetType(models.TextChoices):
+    """Типы пресетов оформления, доступные в админке."""
+
     CATALOG_CARD = "catalog_card", "Catalog card"
     PRODUCT_PAGE = "product_page", "Product page"
     PRODUCT_CARD = "product_card", "Product card"
 
 
 class LayoutMode(models.TextChoices):
+    """Режимы компоновки элементов на странице товара."""
+
     MEDIA_LEFT = "media_left", "Media left"
     MEDIA_TOP = "media_top", "Media top"
     COMPACT = "compact", "Compact"
 
 
 class PhotoMode(models.TextChoices):
+    """Варианты отображения дополнительных изображений товара."""
+
     THUMBNAILS_RIGHT = "thumbnails_right", "Thumbnails right"
     THUMBNAILS_BOTTOM = "thumbnails_bottom", "Thumbnails bottom"
     HOVER_CAROUSEL = "hover_carousel", "Hover carousel"
 
 
 class BannerPlacement(models.TextChoices):
+    """Поддерживаемые места размещения баннеров."""
+
     BELOW_HEADER = "below_header", "Below header"
     IN_GRID = "in_grid", "In grid"
 
 
 class AppearancePreset(models.Model):
+    """Переиспользуемый пресет визуальных настроек интерфейса."""
+
     is_published = models.BooleanField(default=False, db_index=True)
     preset_type = models.CharField(max_length=32, choices=PresetType.choices)
     name = models.CharField(max_length=120)
@@ -53,6 +67,8 @@ class AppearancePreset(models.Model):
 
 
 class ShopAppearanceSettings(models.Model):
+    """Глобальные настройки темы, сетки и активных пресетов магазина."""
+
     is_published = models.BooleanField(unique=True)
     theme_mode = models.CharField(max_length=16, choices=ThemeMode.choices, default=ThemeMode.LIGHT)
     primary_color = models.CharField(max_length=7, default="#ff6b00")
@@ -106,6 +122,8 @@ class ShopAppearanceSettings(models.Model):
 
 
 class AppearanceBanner(models.Model):
+    """Модель рекламного баннера для витрины."""
+
     is_published = models.BooleanField(default=False, db_index=True)
     image_url = models.URLField(max_length=1000)
     link_url = models.URLField(max_length=1000)
