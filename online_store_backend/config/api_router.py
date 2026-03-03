@@ -18,9 +18,12 @@ from online_store_backend.integrations.api.views import AdminIntegrationTestConn
 from online_store_backend.orders.api.admin_views import AdminReviewListView
 from online_store_backend.orders.api.admin_views import AdminMonthlyReportView
 from online_store_backend.orders.api.admin_views import AdminMonthlyReportXlsxView
+from online_store_backend.orders.api.admin_views import AdminOrderListView
+from online_store_backend.orders.api.admin_views import AdminOrderStatusView
 from online_store_backend.orders.api.admin_views import AdminReportPeriodsView
 from online_store_backend.orders.api.admin_views import AdminReviewModerationBulkView
 from online_store_backend.orders.api.admin_views import AdminReviewModerationView
+from online_store_backend.orders.api.admin_views import ShippingStatusWebhookView
 from online_store_backend.orders.api.admin_views import AdminYearlyReportView
 from online_store_backend.orders.api.admin_views import AdminYearlyReportXlsxView
 from online_store_backend.orders.api.payment_views import CheckoutPaymentMethodsView
@@ -68,6 +71,7 @@ urlpatterns = [
     path("checkout/shipping-methods/", CheckoutShippingMethodsView.as_view(), name="checkout-shipping-methods"),
     path("shipping/<str:provider_id>/pickup-points/", ShippingPickupPointsView.as_view(), name="shipping-pickup-points"),
     path("shipping/<str:provider_id>/quote/", ShippingQuoteView.as_view(), name="shipping-quote"),
+    path("shipping/webhook/<str:provider_id>/", ShippingStatusWebhookView.as_view(), name="shipping-webhook"),
     path("shop/appearance/", ShopAppearancePublicView.as_view(), name="shop-appearance-public"),
     path("payments/", PaymentCreateView.as_view(), name="payments-create"),
     path("payments/webhook/<str:provider_id>/", PaymentWebhookView.as_view(), name="payments-webhook"),
@@ -79,6 +83,8 @@ urlpatterns = [
     path("admin/reviews/", AdminReviewListView.as_view(), name="admin-reviews-list"),
     path("admin/reviews/bulk/", AdminReviewModerationBulkView.as_view(), name="admin-reviews-bulk"),
     path("admin/reviews/<int:review_id>/", AdminReviewModerationView.as_view(), name="admin-reviews-update"),
+    path("admin/orders/", AdminOrderListView.as_view(), name="admin-orders-list"),
+    path("admin/orders/<int:order_id>/status/", AdminOrderStatusView.as_view(), name="admin-orders-status"),
     path("admin/reports/periods/", AdminReportPeriodsView.as_view(), name="admin-reports-periods"),
     path("admin/reports/monthly/", AdminMonthlyReportView.as_view(), name="admin-reports-monthly"),
     path("admin/reports/monthly.xlsx", AdminMonthlyReportXlsxView.as_view(), name="admin-reports-monthly-xlsx"),

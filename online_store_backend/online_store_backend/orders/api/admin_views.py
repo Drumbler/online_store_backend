@@ -1,12 +1,15 @@
-"""Админские API для модерации отзывов и формирования отчетов по продажам."""
+"""Админские API для заказов, модерации отзывов и формирования отчетов по продажам."""
 
 import logging
+import secrets
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 
+from django.conf import settings
 from django.http import HttpResponse
+from django.db import transaction
 from django.db.models import CharField
 from django.db.models import Count
 from django.db.models import DecimalField
@@ -25,14 +28,20 @@ from django.db.models.functions import ExtractYear
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from online_store_backend.integrations.models import IntegrationConfig
+from online_store_backend.integrations.models import IntegrationKind
+from online_store_backend.integrations.providers import get_shipping_providers
 from online_store_backend.products.strapi_client import StrapiNotFoundError
 from online_store_backend.products.strapi_client import StrapiUnavailableError
 from online_store_backend.products.strapi_client import get_product
 
+from ..models import Order
+from ..models import OrderDeliveryStatus
 from ..models import OrderStatus
 from ..models import OrderItem
 from ..models import ProductViewEvent
@@ -43,6 +52,19 @@ logger = logging.getLogger(__name__)
 DEFAULT_REVIEWS_PAGE_SIZE = 20
 MAX_REVIEWS_PAGE_SIZE = 100
 ALLOWED_REVIEW_SORTS = {"created_desc", "created_asc", "rating_desc", "rating_asc"}
+DEFAULT_ORDERS_PAGE_SIZE = 20
+MAX_ORDERS_PAGE_SIZE = 100
+ADMIN_ORDER_STATUS_SEQUENCE = (
+    OrderDeliveryStatus.AWAITING_PAYMENT,
+    OrderDeliveryStatus.READY_FOR_DISPATCH,
+    OrderDeliveryStatus.HANDOVER_TO_DELIVERY,
+    OrderDeliveryStatus.IN_TRANSIT,
+    OrderDeliveryStatus.READY_FOR_PICKUP,
+    OrderDeliveryStatus.DELIVERED,
+    OrderDeliveryStatus.DELIVERY_FAILED,
+    OrderDeliveryStatus.CANCELLED,
+)
+ALLOWED_ADMIN_ORDER_STATUSES = set(ADMIN_ORDER_STATUS_SEQUENCE)
 
 
 class ReviewModerationUpdateSerializer(serializers.Serializer):
@@ -263,6 +285,353 @@ class AdminReviewModerationBulkView(APIView):
             moderated_by=request.user,
         )
         return Response({"updated": updated}, status=status.HTTP_200_OK)
+
+
+class AdminOrderStatusUpdateSerializer(serializers.Serializer):
+    """Payload для ручного изменения статуса заказа в админке."""
+
+    status = serializers.ChoiceField(choices=ADMIN_ORDER_STATUS_SEQUENCE)
+    tracking_number = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=128)
+    external_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=128)
+    status_note = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+
+
+class ShippingStatusWebhookSerializer(serializers.Serializer):
+    """Payload webhook-события логистического провайдера."""
+
+    order_number = serializers.IntegerField(min_value=1)
+    status = serializers.ChoiceField(choices=ADMIN_ORDER_STATUS_SEQUENCE)
+    tracking_number = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=128)
+    external_id = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=128)
+    status_note = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=255)
+    event_at = serializers.DateTimeField(required=False)
+    payload = serializers.JSONField(required=False)
+
+
+def _normalize_orders_list_params(query_params):
+    """Нормализует параметры пагинации списка заказов для админки."""
+    page = _positive_int(query_params.get("page"), 1)
+    page_size = _positive_int(query_params.get("page_size"), DEFAULT_ORDERS_PAGE_SIZE)
+    if page_size > MAX_ORDERS_PAGE_SIZE:
+        page_size = MAX_ORDERS_PAGE_SIZE
+    return page, page_size
+
+
+def _effective_order_status(order: Order) -> str:
+    """Возвращает итоговый статус заказа с учетом оплаты и этапа доставки."""
+    if order.status == OrderStatus.CANCELLED:
+        return OrderDeliveryStatus.CANCELLED
+    if order.status in {OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED}:
+        return OrderDeliveryStatus.AWAITING_PAYMENT
+    if order.status == OrderStatus.PAID and order.delivery_status == OrderDeliveryStatus.AWAITING_PAYMENT:
+        return OrderDeliveryStatus.READY_FOR_DISPATCH
+    return order.delivery_status or OrderDeliveryStatus.AWAITING_PAYMENT
+
+
+def _extract_order_user(order: Order):
+    """Собирает безопасное представление пользователя заказа для admin API."""
+    if order.user is None:
+        return None, "Гость"
+    display_name = (
+        (getattr(order.user, "name", "") or "").strip()
+        or (getattr(order.user, "username", "") or "").strip()
+        or (getattr(order.user, "email", "") or "").strip()
+    )
+    if not display_name:
+        display_name = f"User #{order.user_id}"
+    return (
+        {
+            "id": order.user_id,
+            "username": getattr(order.user, "username", None),
+            "email": getattr(order.user, "email", None),
+            "name": getattr(order.user, "name", None),
+        },
+        display_name,
+    )
+
+
+def _serialize_admin_order(order: Order):
+    """Преобразует модель заказа в контракт списка заказов админки."""
+    user_payload, user_display = _extract_order_user(order)
+    return {
+        "id": order.id,
+        "order_number": order.id,
+        "user": user_payload,
+        "user_display": user_display,
+        "total": format(Decimal(str(order.total or "0.00")).quantize(Decimal("0.01")), "f"),
+        "delivery_type": order.shipping_type or "",
+        "shipping_provider": order.shipping_provider or "",
+        "payment_status": order.status,
+        "status": _effective_order_status(order),
+        "tracking_number": order.delivery_tracking_number,
+        "external_id": order.delivery_external_id,
+        "status_note": order.delivery_status_note or "",
+        "created_at": order.created_at,
+        "updated_at": order.updated_at,
+    }
+
+
+def _filter_orders_queryset(queryset, query_params):
+    """Применяет фильтры поиска/статуса/типа доставки к списку заказов."""
+    search = (query_params.get("q") or "").strip()
+    if search:
+        search_filter = Q(user__username__icontains=search) | Q(user__email__icontains=search) | Q(user__name__icontains=search)
+        if search.isdigit():
+            search_filter = search_filter | Q(id=int(search))
+        queryset = queryset.filter(search_filter)
+
+    delivery_type = (query_params.get("delivery_type") or "").strip().lower()
+    if delivery_type:
+        queryset = queryset.filter(shipping_type=delivery_type)
+
+    status_value = (query_params.get("status") or "").strip()
+    if not status_value:
+        return queryset
+    if status_value not in ALLOWED_ADMIN_ORDER_STATUSES:
+        raise serializers.ValidationError(
+            {
+                "status": [
+                    "Invalid status. Allowed: "
+                    + ", ".join(ADMIN_ORDER_STATUS_SEQUENCE)
+                ]
+            }
+        )
+    if status_value == OrderDeliveryStatus.AWAITING_PAYMENT:
+        return queryset.filter(status__in=[OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED])
+    if status_value == OrderDeliveryStatus.CANCELLED:
+        return queryset.filter(status=OrderStatus.CANCELLED)
+    if status_value == OrderDeliveryStatus.READY_FOR_DISPATCH:
+        return queryset.filter(status=OrderStatus.PAID).filter(
+            Q(delivery_status=OrderDeliveryStatus.READY_FOR_DISPATCH)
+            | Q(delivery_status=OrderDeliveryStatus.AWAITING_PAYMENT)
+        )
+    return queryset.filter(status=OrderStatus.PAID, delivery_status=status_value)
+
+
+def _apply_delivery_status(
+    order: Order,
+    target_status: str,
+    *,
+    tracking_number: str | None = None,
+    external_id: str | None = None,
+    status_note: str | None = None,
+    event_at=None,
+    raw_payload=None,
+):
+    """Применяет изменение статуса доставки к заказу с валидацией переходов."""
+    now = event_at or timezone.now()
+    previous = (
+        order.status,
+        order.delivery_status,
+        order.delivery_tracking_number,
+        order.delivery_external_id,
+        order.delivery_status_note or "",
+    )
+
+    if order.status == OrderStatus.CANCELLED and target_status != OrderDeliveryStatus.CANCELLED:
+        raise serializers.ValidationError({"status": ["Cancelled order cannot be moved to another status."]})
+
+    if target_status == OrderDeliveryStatus.CANCELLED:
+        order.status = OrderStatus.CANCELLED
+        order.delivery_status = OrderDeliveryStatus.CANCELLED
+    elif target_status == OrderDeliveryStatus.AWAITING_PAYMENT:
+        if order.status == OrderStatus.PAID:
+            raise serializers.ValidationError({"status": ["Paid order cannot be moved to awaiting payment."]})
+        order.delivery_status = OrderDeliveryStatus.AWAITING_PAYMENT
+    else:
+        if order.status != OrderStatus.PAID:
+            raise serializers.ValidationError({"status": ["Only paid orders can move to delivery lifecycle statuses."]})
+        order.delivery_status = target_status
+
+    if tracking_number is not None:
+        order.delivery_tracking_number = tracking_number or None
+    if external_id is not None:
+        order.delivery_external_id = external_id or None
+    if status_note is not None:
+        order.delivery_status_note = (status_note or "").strip()
+
+    order.delivery_last_event_at = now
+    if raw_payload is not None:
+        order.delivery_last_payload = raw_payload
+
+    current = (
+        order.status,
+        order.delivery_status,
+        order.delivery_tracking_number,
+        order.delivery_external_id,
+        order.delivery_status_note or "",
+    )
+    changed = current != previous
+    if changed or raw_payload is not None:
+        order.save(
+            update_fields=[
+                "status",
+                "delivery_status",
+                "delivery_tracking_number",
+                "delivery_external_id",
+                "delivery_status_note",
+                "delivery_last_event_at",
+                "delivery_last_payload",
+                "updated_at",
+            ]
+        )
+    return changed
+
+
+def _shipping_webhook_secret(config: IntegrationConfig) -> str:
+    """Возвращает secret для валидации webhook доставки."""
+    credentials = (config.credentials or {}) if config else {}
+    settings_payload = (config.settings or {}) if config else {}
+    return str(
+        credentials.get("webhook_secret")
+        or settings_payload.get("webhook_secret")
+        or getattr(settings, "SHIPPING_WEBHOOK_SHARED_SECRET", "")
+        or ""
+    ).strip()
+
+
+def _incoming_webhook_secret(request) -> str:
+    """Извлекает secret из заголовков webhook-запроса."""
+    secret = (
+        request.headers.get("X-Webhook-Secret")
+        or request.headers.get("X-Shipping-Webhook-Secret")
+        or ""
+    ).strip()
+    if secret:
+        return secret
+    auth_header = str(request.headers.get("Authorization") or "")
+    if auth_header.lower().startswith("bearer "):
+        return auth_header.split(" ", 1)[1].strip()
+    return ""
+
+
+class AdminOrderListView(APIView):
+    """Список заказов для админки с фильтрами и пагинацией."""
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        """Отдает список заказов в формате админ-панели."""
+        queryset = Order.objects.select_related("user").order_by("-created_at", "-id")
+        try:
+            queryset = _filter_orders_queryset(queryset, request.query_params)
+        except serializers.ValidationError as exc:
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        page, page_size = _normalize_orders_list_params(request.query_params)
+        total = queryset.count()
+        offset = (page - 1) * page_size
+        results = [_serialize_admin_order(order) for order in queryset[offset : offset + page_size]]
+        return Response(
+            {
+                "results": results,
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminOrderStatusView(APIView):
+    """Ручное обновление статуса заказа в админке."""
+
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, order_id):
+        """Обновляет статус доставки/заказа по id."""
+        serializer = AdminOrderStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        with transaction.atomic():
+            order = Order.objects.select_for_update().filter(id=order_id).first()
+            if not order:
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                _apply_delivery_status(
+                    order,
+                    payload["status"],
+                    tracking_number=payload.get("tracking_number"),
+                    external_id=payload.get("external_id"),
+                    status_note=payload.get("status_note"),
+                    event_at=timezone.now(),
+                    raw_payload={"source": "admin", "status": payload["status"]},
+                )
+            except serializers.ValidationError as exc:
+                return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(_serialize_admin_order(order), status=status.HTTP_200_OK)
+
+
+class ShippingStatusWebhookView(APIView):
+    """Webhook для обновления статуса заказа от логистического провайдера."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request, provider_id):
+        """Принимает webhook и синхронизирует статус доставки заказа."""
+        if provider_id not in get_shipping_providers():
+            return Response({"detail": "Unknown shipping provider."}, status=status.HTTP_404_NOT_FOUND)
+
+        config = IntegrationConfig.objects.filter(
+            kind=IntegrationKind.SHIPPING,
+            provider_id=provider_id,
+            enabled=True,
+        ).first()
+        if not config:
+            return Response({"detail": "Shipping provider is disabled."}, status=status.HTTP_400_BAD_REQUEST)
+
+        expected_secret = _shipping_webhook_secret(config)
+        if expected_secret:
+            provided_secret = _incoming_webhook_secret(request)
+            if not provided_secret or not secrets.compare_digest(provided_secret, expected_secret):
+                return Response({"detail": "Invalid webhook secret."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ShippingStatusWebhookSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        with transaction.atomic():
+            order = Order.objects.select_for_update().filter(id=payload["order_number"]).first()
+            if not order:
+                return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+            if order.shipping_provider and order.shipping_provider != provider_id:
+                return Response(
+                    {"detail": "Order belongs to another shipping provider."},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if not order.shipping_provider:
+                order.shipping_provider = provider_id
+
+            try:
+                changed = _apply_delivery_status(
+                    order,
+                    payload["status"],
+                    tracking_number=payload.get("tracking_number"),
+                    external_id=payload.get("external_id"),
+                    status_note=payload.get("status_note"),
+                    event_at=payload.get("event_at"),
+                    raw_payload=payload.get("payload") if "payload" in payload else dict(request.data),
+                )
+            except serializers.ValidationError as exc:
+                return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
+            if order.shipping_provider == provider_id:
+                order.save(update_fields=["shipping_provider", "updated_at"])
+
+        return Response(
+            {
+                "ok": True,
+                "already_processed": not changed,
+                "order_number": order.id,
+                "status": _effective_order_status(order),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class MonthlyReportQuerySerializer(serializers.Serializer):

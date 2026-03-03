@@ -19,6 +19,7 @@ from online_store_backend.integrations.providers import PaymentProviderUnavailab
 from online_store_backend.integrations.providers import get_payment_providers
 
 from ..models import Order
+from ..models import OrderDeliveryStatus
 from ..models import OrderStatus
 from ..models import Payment
 from ..models import PaymentStatus
@@ -268,10 +269,17 @@ class PaymentWebhookView(APIView):
                 payment.completed_at = now
                 payment.save(update_fields=["status", "completed_at", "updated_at"])
 
+                order_update_fields = []
                 if payment.order.status != OrderStatus.PAID:
                     payment.order.status = OrderStatus.PAID
                     payment.order.paid_at = now
-                    payment.order.save(update_fields=["status", "paid_at", "updated_at"])
+                    order_update_fields.extend(["status", "paid_at"])
+                if payment.order.delivery_status == OrderDeliveryStatus.AWAITING_PAYMENT:
+                    payment.order.delivery_status = OrderDeliveryStatus.READY_FOR_DISPATCH
+                    payment.order.delivery_last_event_at = now
+                    order_update_fields.extend(["delivery_status", "delivery_last_event_at"])
+                if order_update_fields:
+                    payment.order.save(update_fields=[*order_update_fields, "updated_at"])
             else:
                 payment.status = PaymentStatus.FAILED
                 payment.save(update_fields=["status", "updated_at"])

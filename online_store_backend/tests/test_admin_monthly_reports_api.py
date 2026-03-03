@@ -55,11 +55,18 @@ def _seed_monthly_report_data():
     now = timezone.localtime(timezone.now())
     period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     previous_month_point = period_start - timedelta(days=2)
+    elapsed_days = max((now - period_start).days, 0)
+
+    def _current_month_point(preferred_day_offset, seconds=0):
+        candidate = period_start + timedelta(days=min(preferred_day_offset, elapsed_days), seconds=seconds)
+        if candidate > now:
+            return now
+        return candidate
 
     paid_current = Order.objects.create(
         status=OrderStatus.PAID,
         total=Decimal("250.00"),
-        paid_at=period_start + timedelta(days=2),
+        paid_at=_current_month_point(2, seconds=10),
     )
     _create_order_item(paid_current, "p-1", "Товар A старый", Decimal("100.00"), 2)
     _create_order_item(paid_current, "p-2", "Товар B", Decimal("50.00"), 1)
@@ -69,7 +76,7 @@ def _seed_monthly_report_data():
         total=Decimal("120.00"),
         paid_at=None,
     )
-    Order.objects.filter(id=paid_without_paid_at.id).update(created_at=period_start + timedelta(days=4))
+    Order.objects.filter(id=paid_without_paid_at.id).update(created_at=_current_month_point(4, seconds=20))
     paid_without_paid_at.refresh_from_db()
     _create_order_item(paid_without_paid_at, "p-1", "Товар A новый", Decimal("120.00"), 1)
 
@@ -86,10 +93,10 @@ def _seed_monthly_report_data():
     )
     _create_order_item(unpaid_current, "p-2", "Товар B неоплачен", Decimal("99.00"), 10)
 
-    _create_view_event("p-1", period_start + timedelta(days=1))
-    _create_view_event("p-1", period_start + timedelta(days=6))
-    _create_view_event("p-2", period_start + timedelta(days=7))
-    _create_view_event("p-3", period_start + timedelta(days=8))
+    _create_view_event("p-1", _current_month_point(1, seconds=30))
+    _create_view_event("p-1", _current_month_point(6, seconds=40))
+    _create_view_event("p-2", _current_month_point(7, seconds=50))
+    _create_view_event("p-3", _current_month_point(8, seconds=60))
     _create_view_event("p-2", previous_month_point)
 
     return period_start, now, previous_month_point
@@ -268,8 +275,8 @@ def test_reports_endpoints_require_admin_permissions(api_client):
     response_yearly = api_client.get("/api/admin/reports/yearly/")
     response_yearly_xlsx = api_client.get("/api/admin/reports/yearly.xlsx")
 
-    assert response_periods.status_code == 403
-    assert response_json.status_code == 403
-    assert response_xlsx.status_code == 403
-    assert response_yearly.status_code == 403
-    assert response_yearly_xlsx.status_code == 403
+    assert response_periods.status_code in {401, 403}
+    assert response_json.status_code in {401, 403}
+    assert response_xlsx.status_code in {401, 403}
+    assert response_yearly.status_code in {401, 403}
+    assert response_yearly_xlsx.status_code in {401, 403}

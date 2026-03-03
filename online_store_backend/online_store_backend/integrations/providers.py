@@ -148,7 +148,14 @@ class DemoShippingProviderAdapter(ShippingProviderAdapter):
                 "type": "password",
                 "required": False,
                 "group": "credentials",
-            }
+            },
+            {
+                "name": "webhook_secret",
+                "label": "Webhook secret",
+                "type": "password",
+                "required": False,
+                "group": "credentials",
+            },
         ]
 
     def test_connection(self, config: IntegrationConfig) -> tuple[bool, str]:
@@ -278,6 +285,13 @@ class YandexNddShippingProviderAdapter(ShippingProviderAdapter):
             {
                 "name": "token",
                 "label": "Bearer token",
+                "type": "password",
+                "required": False,
+                "group": "credentials",
+            },
+            {
+                "name": "webhook_secret",
+                "label": "Webhook secret",
                 "type": "password",
                 "required": False,
                 "group": "credentials",

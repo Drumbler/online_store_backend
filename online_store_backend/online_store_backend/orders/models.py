@@ -33,6 +33,19 @@ class OrderStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
+class OrderDeliveryStatus(models.TextChoices):
+    """Статусы логистики заказа для синхронизации с внешним сервисом доставки."""
+
+    AWAITING_PAYMENT = "awaiting_payment", "Awaiting payment"
+    READY_FOR_DISPATCH = "ready_for_dispatch", "Ready for dispatch"
+    HANDOVER_TO_DELIVERY = "handover_to_delivery", "Handed over to delivery"
+    IN_TRANSIT = "in_transit", "In transit"
+    READY_FOR_PICKUP = "ready_for_pickup", "Ready for pickup"
+    DELIVERED = "delivered", "Delivered"
+    DELIVERY_FAILED = "delivery_failed", "Delivery failed"
+    CANCELLED = "cancelled", "Cancelled"
+
+
 class Order(models.Model):
     """Заказ пользователя или гостя с итоговой стоимостью и доставкой."""
 
@@ -46,6 +59,16 @@ class Order(models.Model):
     shipping_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     shipping_address = models.JSONField(null=True, blank=True)
     pickup_point_id = models.CharField(max_length=128, null=True, blank=True)
+    delivery_status = models.CharField(
+        max_length=32,
+        choices=OrderDeliveryStatus.choices,
+        default=OrderDeliveryStatus.AWAITING_PAYMENT,
+    )
+    delivery_external_id = models.CharField(max_length=128, null=True, blank=True)
+    delivery_tracking_number = models.CharField(max_length=128, null=True, blank=True)
+    delivery_status_note = models.CharField(max_length=255, blank=True, default="")
+    delivery_last_event_at = models.DateTimeField(null=True, blank=True)
+    delivery_last_payload = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
