@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework import parsers
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
@@ -33,6 +34,7 @@ from ..strapi_client import get_product_admin_raw
 from ..strapi_client import update_category_admin
 from ..strapi_client import update_product_admin_raw
 from ..strapi_client import update_product_admin_flat
+from ..strapi_client import upload_product_image_admin
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +77,26 @@ def _extract_category_document_id(category):
     if not isinstance(category, dict):
         return None
     return category.get("documentId") or category.get("id")
+
+
+def _extract_media_id(image):
+    """Извлекает numeric media id из relation-представления Strapi."""
+    if not image:
+        return None
+    if isinstance(image, dict) and "data" in image:
+        image = image["data"]
+    if isinstance(image, list):
+        image = image[0] if image else None
+    if not isinstance(image, dict):
+        return None
+    attrs = image.get("attributes") if isinstance(image.get("attributes"), dict) else image
+    candidate = attrs.get("id") if isinstance(attrs, dict) else image.get("id")
+    if candidate in (None, ""):
+        candidate = image.get("id")
+    try:
+        return int(candidate)
+    except (TypeError, ValueError):
+        return None
 
 
 def _normalize_price_value(value):
@@ -157,7 +179,11 @@ def _build_product_payload(attrs):
         "currency": attrs.get("currency") or "RUB",
         "category": _extract_category_document_id(attrs.get("category")),
         "discount_percent": attrs.get("discount_percent") or 0,
+        "publishedAt": attrs.get("publishedAt"),
     }
+    image_id = _extract_media_id(attrs.get("image"))
+    if image_id is not None:
+        payload["image"] = image_id
     return payload
 
 
@@ -466,6 +492,7 @@ class ProductAdminViewSet(ViewSet):
 
     permission_classes = [IsAdminUser]
     serializer_class = ProductAdminSerializer
+    parser_classes = [parsers.JSONParser, parsers.MultiPartParser, parsers.FormParser]
 
     def list(self, request):
         """Возвращает список товаров с пагинацией."""
@@ -509,6 +536,8 @@ class ProductAdminViewSet(ViewSet):
             payload["price"] = str(payload["price"])
         if payload.get("category") == "":
             payload["category"] = None
+        if payload.get("image") == "":
+            payload["image"] = None
         try:
             product = create_product_admin(payload)
         except StrapiRequestError as exc:
@@ -556,12 +585,18 @@ class ProductAdminViewSet(ViewSet):
             "currency": current.get("currency"),
             "category": _extract_category_document_id(current.get("category")),
             "discount_percent": current.get("discount_percent"),
+            "image": _extract_media_id(current.get("image")),
+            "publishedAt": current.get("publishedAt"),
         }
         updates = serializer.validated_data
         if "price" in updates:
             payload["price"] = str(updates["price"])
         if "category" in updates:
             payload["category"] = None if updates["category"] == "" else updates["category"]
+        if "image" in updates:
+            payload["image"] = updates["image"]
+        if "publish" in updates:
+            payload["publishedAt"] = _published_at(updates["publish"])
         if "discount_percent" in updates:
             payload["discount_percent"] = updates["discount_percent"]
         for key in ("title", "slug", "description", "currency"):
@@ -598,6 +633,36 @@ class ProductAdminViewSet(ViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"], url_path="upload-image")
+    def upload_image(self, request):
+        """Загружает одно изображение товара в Strapi и возвращает media id/url."""
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            return Response({"file": ["This field is required."]}, status=status.HTTP_400_BAD_REQUEST)
+        content_type = str(uploaded_file.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            return Response({"file": ["Only image files are allowed."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            uploaded = upload_product_image_admin(
+                file_name=uploaded_file.name,
+                file_content=uploaded_file.read(),
+                content_type=uploaded_file.content_type,
+            )
+        except StrapiRequestError as exc:
+            return Response(
+                {"detail": _trim_strapi_message(exc.response_text)},
+                status=exc.status_code,
+            )
+        except StrapiUnavailableError:
+            logger.exception("Strapi unavailable while uploading product image.")
+            return Response(
+                {"detail": "Catalog service unavailable"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(uploaded, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"], url_path="bulk-update")
     def bulk_update(self, request):
@@ -681,6 +746,8 @@ class ProductAdminViewSet(ViewSet):
                 "category": category_id
                 if operation_type == "set_category"
                 else _extract_category_document_id(attrs.get("category")),
+                "image": _extract_media_id(attrs.get("image")),
+                "publishedAt": attrs.get("publishedAt"),
             }
             try:
                 update_product_admin_raw(product_id, payload)

@@ -40,6 +40,9 @@ class ProductAdminSerializer(serializers.Serializer):
     currency = serializers.CharField()
     category = ProductAdminCategorySerializer(allow_null=True, required=False)
     discount_percent = serializers.IntegerField(required=False)
+    publish = serializers.BooleanField(required=False)
+    image_id = serializers.IntegerField(required=False, allow_null=True)
+    image_url = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
 class CategoryUpsertSerializer(serializers.Serializer):
@@ -79,6 +82,7 @@ class ProductUpsertSerializer(serializers.Serializer):
     currency = serializers.CharField(required=True, allow_blank=False)
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     publish = serializers.BooleanField(required=False, default=True)
+    image = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
     def validate(self, attrs):
@@ -111,6 +115,8 @@ class ProductUpdateSerializer(serializers.Serializer):
     price = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=0)
     currency = serializers.CharField(required=False, allow_blank=False)
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    publish = serializers.BooleanField(required=False)
+    image = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
 

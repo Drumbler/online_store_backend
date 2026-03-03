@@ -151,6 +151,19 @@ def _extract_thumbnail_url(image):
     return None
 
 
+def _extract_media_id(image):
+    """Возвращает numeric id первого медиа-элемента, если доступен."""
+    for attrs in _iter_media_attributes(image):
+        candidate = attrs.get("id")
+        if candidate in (None, ""):
+            continue
+        try:
+            return int(candidate)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _normalize_category(category):
     """Нормализует категорию к единому публичному формату."""
     if not category:
@@ -236,6 +249,9 @@ def _normalize_product_admin(item):
         "currency": attrs.get("currency") or "RUB",
         "category": _normalize_category(attrs.get("category")),
         "discount_percent": discount_percent,
+        "publish": bool(attrs.get("publishedAt")),
+        "image_id": _extract_media_id(attrs.get("image")),
+        "image_url": _extract_image_url(attrs.get("image")),
     }
 
 
@@ -257,22 +273,28 @@ def _get_admin_token():
     return token
 
 
-def _strapi_request(method, path, *, params=None, json=None, token=None):
+def _strapi_request(method, path, *, params=None, json=None, data=None, files=None, token=None):
     """Выполняет HTTP-запрос к Strapi и обрабатывает типовые ошибки."""
     base_url = settings.STRAPI_BASE_URL.rstrip("/")
     url = f"{base_url}{path}"
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    request_kwargs = {
+        "method": method,
+        "url": url,
+        "params": params,
+        "headers": headers,
+        "timeout": settings.STRAPI_TIMEOUT_SECONDS,
+    }
+    if files is not None:
+        request_kwargs["files"] = files
+        if data is not None:
+            request_kwargs["data"] = data
+    else:
+        request_kwargs["json"] = json
     try:
-        response = requests.request(
-            method,
-            url,
-            params=params,
-            json=json,
-            headers=headers,
-            timeout=settings.STRAPI_TIMEOUT_SECONDS,
-        )
+        response = requests.request(**request_kwargs)
     except requests.RequestException as exc:
         logger.exception("Strapi request failed: %s", exc)
         raise StrapiUnavailableError from exc
@@ -303,6 +325,53 @@ def _strapi_get_public(path, params=None):
 def _strapi_get_admin(path, params=None):
     """GET-запрос к Strapi с admin-токеном."""
     return _strapi_request("GET", path, params=params, token=_get_admin_token())
+
+
+def _normalize_upload_response(payload):
+    """Нормализует ответ /api/upload к объекту {id, url, name}."""
+    item = None
+    if isinstance(payload, list) and payload:
+        item = payload[0]
+    elif isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, list) and data:
+            item = data[0]
+        elif isinstance(data, dict):
+            item = data
+
+    if not isinstance(item, dict):
+        return None
+
+    attrs = _extract_attributes(item)
+    file_id = attrs.get("id")
+    url = attrs.get("url")
+    if file_id in (None, "") or not url:
+        return None
+
+    try:
+        numeric_id = int(file_id)
+    except (TypeError, ValueError):
+        return None
+
+    return {
+        "id": numeric_id,
+        "url": _absolute_media_url(str(url)),
+        "name": attrs.get("name"),
+    }
+
+
+def upload_product_image_admin(file_name: str, file_content: bytes, content_type: str | None = None):
+    """Загружает файл изображения в Strapi и возвращает id/url загруженного медиа."""
+    payload = _strapi_request(
+        "POST",
+        "/api/upload",
+        files={"files": (file_name, file_content, content_type or "application/octet-stream")},
+        token=_get_admin_token(),
+    )
+    normalized = _normalize_upload_response(payload)
+    if not normalized:
+        raise StrapiUnavailableError("Invalid upload response from Strapi.")
+    return normalized
 
 
 def list_products(*, page: int, page_size: int, params=None):
@@ -513,7 +582,8 @@ def list_products_admin(*, page: int, page_size: int, params=None):
     params = params or {
         "pagination[page]": page,
         "pagination[pageSize]": page_size,
-        "populate": "category",
+        "populate[0]": "category",
+        "populate[1]": "image",
     }
     try:
         payload = _strapi_get_admin("/api/products", params=params)
@@ -541,7 +611,10 @@ def list_products_admin(*, page: int, page_size: int, params=None):
 
 def get_product_admin(document_id: str):
     """Возвращает товар через admin API Strapi."""
-    params = {"populate": "category"}
+    params = {
+        "populate[0]": "category",
+        "populate[1]": "image",
+    }
     try:
         payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
     except StrapiRequestError as exc:
@@ -626,7 +699,10 @@ def delete_product_admin(document_id: str):
 
 def get_product_admin_raw(document_id: str):
     """Возвращает сырой словарь атрибутов товара из Strapi."""
-    params = {"populate": "category"}
+    params = {
+        "populate[0]": "category",
+        "populate[1]": "image",
+    }
     try:
         payload = _strapi_get_admin(f"/api/products/{document_id}", params=params)
     except StrapiRequestError as exc:

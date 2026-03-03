@@ -1,0 +1,8 @@
+.venv/
+**/__pycache__/
+*.py[cod]
+
+vue_frontend/node_modules/
+vue_frontend/dist/
+vue_frontend/.vite/
+vue_frontend/.env.local

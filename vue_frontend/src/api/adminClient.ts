@@ -4,10 +4,7 @@ import { installJwtInterceptors } from "./jwtAuth";
 
 export const adminApiClient = axios.create({
   baseURL: "/api",
-  withCredentials: true,
-  headers: {
-    "Content-Type": "application/json"
-  }
+  withCredentials: true
 });
 
 installJwtInterceptors(adminApiClient);

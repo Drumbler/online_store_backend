@@ -438,6 +438,7 @@ type ImageItem = {
   preview: string;
   file?: File;
   url?: string;
+  fileId?: number | null;
 };
 
 type PaginationState = {
@@ -507,6 +508,36 @@ const hasDraftChanges = computed(() =>
 const createImagesSummary = computed(() =>
   createForm.value.images.length > 0 ? `${createForm.value.images.length} прикреплено` : "Нет"
 );
+
+const cloneImages = (images: ImageItem[]) =>
+  images.map((image) => ({ ...image }));
+
+const normalizeThumbnailIndex = (index: number | null, images: ImageItem[]) => {
+  if (images.length === 0) {
+    return null;
+  }
+  if (index === null || index < 0 || index >= images.length) {
+    return 0;
+  }
+  return index;
+};
+
+const imageSignature = (images: ImageItem[], thumbIndex: number | null) => {
+  const normalizedThumb = normalizeThumbnailIndex(thumbIndex, images);
+  const items = images.map((image) => {
+    if (typeof image.fileId === "number") {
+      return `id:${image.fileId}`;
+    }
+    if (image.file) {
+      return `file:${image.file.name}:${image.file.size}:${image.file.lastModified}`;
+    }
+    if (image.url) {
+      return `url:${image.url}`;
+    }
+    return `preview:${image.preview}`;
+  });
+  return `${items.join("|")}#thumb:${normalizedThumb === null ? "none" : normalizedThumb}`;
+};
 
 const showToast = (message: string) => {
   toast.value = message;
@@ -718,8 +749,8 @@ const markEdited = (row: ProductRow) => {
     row.category_id !== original.category_id ||
     row.publish !== original.publish ||
     row.discount_percent !== original.discount_percent ||
-    row.thumbnailIndex !== original.thumbnailIndex ||
-    row.images.length !== original.images.length;
+    imageSignature(row.images, row.thumbnailIndex) !==
+      imageSignature(original.images, original.thumbnailIndex);
   row.status = isEdited ? "edited" : "clean";
 };
 
@@ -874,26 +905,26 @@ const confirmDeleteSingle = () => {
 
 const openImages = (row: ProductRow) => {
   imageTarget.value = row;
-  imageDraft.value = [...row.images];
-  thumbnailIndex.value = row.thumbnailIndex;
+  imageDraft.value = cloneImages(row.images);
+  thumbnailIndex.value = normalizeThumbnailIndex(row.thumbnailIndex, row.images);
   showImagesModal.value = true;
 };
 
 const openImagesForCreate = () => {
   imageTarget.value = null;
-  imageDraft.value = [...createForm.value.images];
-  thumbnailIndex.value = 0;
+  imageDraft.value = cloneImages(createForm.value.images);
+  thumbnailIndex.value = normalizeThumbnailIndex(0, imageDraft.value);
   showImagesModal.value = true;
 };
 
 const closeImagesModal = () => {
   if (imageTarget.value) {
-    imageTarget.value.images = [...imageDraft.value];
-    imageTarget.value.imageFiles = [...imageDraft.value];
-    imageTarget.value.thumbnailIndex = thumbnailIndex.value;
+    imageTarget.value.images = cloneImages(imageDraft.value);
+    imageTarget.value.imageFiles = cloneImages(imageDraft.value);
+    imageTarget.value.thumbnailIndex = normalizeThumbnailIndex(thumbnailIndex.value, imageDraft.value);
     markEdited(imageTarget.value);
   } else {
-    createForm.value.images = [...imageDraft.value];
+    createForm.value.images = cloneImages(imageDraft.value);
   }
   showImagesModal.value = false;
 };
@@ -904,8 +935,20 @@ const setThumbnail = (index: number) => {
 
 const removeImage = (index: number) => {
   imageDraft.value.splice(index, 1);
-  if (thumbnailIndex.value !== null && thumbnailIndex.value >= index) {
-    thumbnailIndex.value = Math.max(0, thumbnailIndex.value - 1);
+  if (imageDraft.value.length === 0) {
+    thumbnailIndex.value = null;
+    return;
+  }
+  if (thumbnailIndex.value === null) {
+    thumbnailIndex.value = 0;
+    return;
+  }
+  if (thumbnailIndex.value > index) {
+    thumbnailIndex.value -= 1;
+    return;
+  }
+  if (thumbnailIndex.value >= imageDraft.value.length) {
+    thumbnailIndex.value = imageDraft.value.length - 1;
   }
 };
 
@@ -919,6 +962,9 @@ const handleImageFiles = (event: Event) => {
       file
     });
   });
+  if (thumbnailIndex.value === null && imageDraft.value.length > 0) {
+    thumbnailIndex.value = 0;
+  }
   if (fileInput.value) {
     fileInput.value.value = "";
   }
@@ -944,10 +990,70 @@ const changePage = async (direction: number) => {
   await loadProducts();
 };
 
+const getPrimaryImage = (row: ProductRow) => {
+  if (row.images.length === 0) {
+    return null;
+  }
+  const index = normalizeThumbnailIndex(row.thumbnailIndex, row.images);
+  if (index === null) {
+    return null;
+  }
+  return row.images[index] || null;
+};
+
+const uploadImage = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await adminApiClient.post("/admin/catalog/products/upload-image/", formData);
+  const fileId = Number(response?.data?.id);
+  if (!Number.isFinite(fileId) || fileId <= 0) {
+    throw new Error("Upload response does not contain a valid media id.");
+  }
+  return {
+    id: fileId,
+    url: String(response?.data?.url || "")
+  };
+};
+
+const resolvePrimaryImageId = async (row: ProductRow) => {
+  const primaryImage = getPrimaryImage(row);
+  if (!primaryImage) {
+    return null;
+  }
+  if (typeof primaryImage.fileId === "number") {
+    return primaryImage.fileId;
+  }
+  if (!primaryImage.file) {
+    return null;
+  }
+  const uploaded = await uploadImage(primaryImage.file);
+  primaryImage.fileId = uploaded.id;
+  if (uploaded.url) {
+    primaryImage.url = uploaded.url;
+    primaryImage.preview = uploaded.url;
+  }
+  delete primaryImage.file;
+  return uploaded.id;
+};
+
 const buildRowFromApi = (item: any): ProductRow => {
   const price = Number(item.price ?? 0);
   const discount = Number(item.discount_percent ?? 0);
   const categoryId = item.category?.id || "";
+  const imageUrl = typeof item.image_url === "string" ? item.image_url : "";
+  const imageIdValue = Number(item.image_id);
+  const imageId = Number.isFinite(imageIdValue) && imageIdValue > 0 ? imageIdValue : null;
+  const images: ImageItem[] = imageUrl
+    ? [
+        {
+          id: `existing-${item.id}-${imageId ?? "none"}`,
+          preview: imageUrl,
+          url: imageUrl,
+          fileId: imageId
+        }
+      ]
+    : [];
+  const normalizedThumbnailIndex = normalizeThumbnailIndex(0, images);
   const row: ProductRow = {
     id: String(item.id),
     title: item.title || "",
@@ -955,17 +1061,17 @@ const buildRowFromApi = (item: any): ProductRow => {
     description: item.description || "",
     price: Number.isNaN(price) ? 0 : price,
     category_id: categoryId,
-    publish: true,
+    publish: item.publish !== false,
     discount_percent: Number.isNaN(discount) ? 0 : discount,
     status: "clean",
-    images: [],
-    imageFiles: [],
-    thumbnailIndex: null
+    images,
+    imageFiles: cloneImages(images),
+    thumbnailIndex: normalizedThumbnailIndex
   };
   row.original = {
     ...row,
-    images: [],
-    thumbnailIndex: null
+    images: cloneImages(images),
+    thumbnailIndex: normalizedThumbnailIndex
   };
   return row;
 };
@@ -1045,7 +1151,6 @@ const getSlugConflictMessage = (err: any) => {
 const applyChanges = async () => {
   committing.value = true;
   error.value = null;
-  let imageUploadSkipped = false;
   try {
     const created = rows.value.filter((row) => row.status === "new");
     const updated = rows.value.filter((row) => row.status === "edited");
@@ -1058,9 +1163,7 @@ const applyChanges = async () => {
     }
 
     for (const row of created) {
-      if (row.imageFiles.length > 0) {
-        imageUploadSkipped = true;
-      }
+      const imageId = await resolvePrimaryImageId(row);
       try {
         await adminApiClient.post("/admin/catalog/products/", {
           title: row.title,
@@ -1070,6 +1173,7 @@ const applyChanges = async () => {
           currency: "RUB",
           category: row.category_id || "",
           publish: row.publish,
+          image: imageId,
           discount_percent: row.discount_percent
         });
       } catch (err: any) {
@@ -1084,9 +1188,7 @@ const applyChanges = async () => {
     }
 
     for (const row of updated) {
-      if (row.imageFiles.length > 0) {
-        imageUploadSkipped = true;
-      }
+      const imageId = await resolvePrimaryImageId(row);
       try {
         await adminApiClient.put(`/admin/catalog/products/${row.id}/`, {
           title: row.title,
@@ -1096,6 +1198,7 @@ const applyChanges = async () => {
           currency: "RUB",
           category: row.category_id || "",
           publish: row.publish,
+          image: imageId,
           discount_percent: row.discount_percent
         });
       } catch (err: any) {
@@ -1114,11 +1217,7 @@ const applyChanges = async () => {
       await adminApiClient.delete(`/admin/catalog/products/${row.id}/`);
     }
 
-    if (imageUploadSkipped) {
-      showToast("Загрузка изображений пока не реализована. Изменения изображений пропущены.");
-    } else {
-      showToast("Изменения применены.");
-    }
+    showToast("Изменения применены.");
     await loadProducts();
   } catch (err) {
     console.error(err);
