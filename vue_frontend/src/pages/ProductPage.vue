@@ -30,6 +30,7 @@
               :key="`thumb-${thumb.index}-${thumb.url}`"
               type="button"
               class="thumb-btn"
+              :class="{ active: thumb.index === activeImageSafeIndex }"
               @click="setActiveImage(thumb.index)"
             >
               <img :src="thumb.url" alt="Миниатюра товара" class="thumb" />
@@ -336,17 +337,22 @@ const collectProductImages = (item: Product | null) => {
 const productImages = computed(() => {
   return collectProductImages(product.value);
 });
+const activeImageSafeIndex = computed(() => {
+  if (productImages.value.length === 0) {
+    return 0;
+  }
+  return Math.min(activeImageIndex.value, productImages.value.length - 1);
+});
 const activeImageUrl = computed(() => {
   if (productImages.value.length === 0) {
     return "";
   }
-  const safeIndex = Math.min(activeImageIndex.value, productImages.value.length - 1);
-  return productImages.value[safeIndex] || productImages.value[0];
+  return productImages.value[activeImageSafeIndex.value] || productImages.value[0];
 });
 const thumbnailItems = computed(() =>
   productImages.value
     .map((url, index) => ({ url, index }))
-    .filter((item) => item.url && item.url !== activeImageUrl.value)
+    .filter((item) => item.url)
 );
 
 const totalPages = computed(() => {
@@ -696,6 +702,10 @@ onUnmounted(() => {
   min-height: 0;
   line-height: 0;
   cursor: pointer;
+}
+
+.thumb-btn.active .thumb {
+  border-color: var(--primary);
 }
 
 .thumb {

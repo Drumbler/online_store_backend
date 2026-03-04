@@ -5,8 +5,21 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from ..models import Order
+from ..models import OrderDeliveryStatus
 from ..models import OrderItem
+from ..models import OrderStatus
 from ..models import Review
+
+
+def _effective_order_status(order: Order) -> str:
+    """Возвращает пользовательский статус заказа с учетом этапа доставки."""
+    if order.status == OrderStatus.CANCELLED:
+        return OrderDeliveryStatus.CANCELLED
+    if order.status in {OrderStatus.PENDING_PAYMENT, OrderStatus.PAYMENT_FAILED}:
+        return OrderDeliveryStatus.AWAITING_PAYMENT
+    if order.status == OrderStatus.PAID and order.delivery_status == OrderDeliveryStatus.AWAITING_PAYMENT:
+        return OrderDeliveryStatus.READY_FOR_DISPATCH
+    return order.delivery_status or OrderDeliveryStatus.AWAITING_PAYMENT
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -39,6 +52,8 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     order_number = serializers.IntegerField(source="id", read_only=True)
     order_secret = serializers.CharField(read_only=True)
+    status = serializers.SerializerMethodField()
+    payment_status = serializers.CharField(source="status", read_only=True)
     subtotal_original = serializers.SerializerMethodField()
     items_total = serializers.SerializerMethodField()
     discount_total = serializers.SerializerMethodField()
@@ -51,6 +66,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "order_number",
             "order_secret",
             "status",
+            "payment_status",
             "total",
             "subtotal_original",
             "items_total",
@@ -83,6 +99,10 @@ class OrderSerializer(serializers.ModelSerializer):
         subtotal_original = self.get_subtotal_original(obj)
         return subtotal_original - self.get_items_total(obj)
 
+    def get_status(self, obj):
+        """Возвращает эффективный статус доставки для UI личного кабинета."""
+        return _effective_order_status(obj)
+
 
 class OrderLookupItemSerializer(serializers.ModelSerializer):
     """Позиция заказа для публичного lookup-ответа."""
@@ -109,6 +129,8 @@ class OrderLookupSerializer(serializers.ModelSerializer):
 
     order_number = serializers.IntegerField(source="id", read_only=True)
     order_secret = serializers.CharField(read_only=True)
+    status = serializers.SerializerMethodField()
+    payment_status = serializers.CharField(source="status", read_only=True)
     total_price = serializers.DecimalField(source="total", max_digits=10, decimal_places=2, read_only=True)
     currency = serializers.SerializerMethodField()
     items = OrderLookupItemSerializer(many=True, read_only=True)
@@ -123,6 +145,7 @@ class OrderLookupSerializer(serializers.ModelSerializer):
             "order_number",
             "order_secret",
             "status",
+            "payment_status",
             "created_at",
             "total_price",
             "subtotal_original",
@@ -159,6 +182,10 @@ class OrderLookupSerializer(serializers.ModelSerializer):
         """Вычисляет абсолютную сумму скидки заказа."""
         subtotal_original = self.get_subtotal_original(obj)
         return subtotal_original - self.get_items_total(obj)
+
+    def get_status(self, obj):
+        """Возвращает эффективный статус доставки для публичного lookup."""
+        return _effective_order_status(obj)
 
 
 class ReviewSerializer(serializers.ModelSerializer):

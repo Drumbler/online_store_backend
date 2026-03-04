@@ -319,13 +319,22 @@ const orderCurrency = (order: any) => {
 
 const statusToneClass = (status?: string) => {
   const normalized = String(status || "").toLowerCase();
-  if (/(paid|complete|success|done|delivered)/.test(normalized)) {
+  if (["delivered", "paid"].includes(normalized)) {
     return "status-success";
   }
-  if (/(fail|cancel|declin|refund|reject)/.test(normalized)) {
+  if (["cancelled", "delivery_failed", "payment_failed"].includes(normalized)) {
     return "status-danger";
   }
-  if (/(pending|new|process|await)/.test(normalized)) {
+  if (
+    [
+      "pending_payment",
+      "awaiting_payment",
+      "ready_for_dispatch",
+      "handover_to_delivery",
+      "in_transit",
+      "ready_for_pickup"
+    ].includes(normalized)
+  ) {
     return "status-warn";
   }
   return "status-neutral";
@@ -333,10 +342,20 @@ const statusToneClass = (status?: string) => {
 
 const statusLabel = (status?: string) => {
   const normalized = String(status || "").toLowerCase();
-  if (/(paid|complete|success|done|delivered)/.test(normalized)) return "Оплачен";
-  if (/(fail|cancel|declin|refund|reject)/.test(normalized)) return "Отменён";
-  if (/(pending|new|process|await)/.test(normalized)) return "В обработке";
-  return status || "Неизвестно";
+  const labels: Record<string, string> = {
+    pending_payment: "Ожидает оплаты",
+    awaiting_payment: "Ожидает оплаты",
+    paid: "Оплачен",
+    payment_failed: "Ошибка оплаты",
+    ready_for_dispatch: "Готов к отгрузке",
+    handover_to_delivery: "Передан в доставку",
+    in_transit: "В пути",
+    ready_for_pickup: "Готов к выдаче",
+    delivered: "Доставлен",
+    delivery_failed: "Ошибка доставки",
+    cancelled: "Отменён"
+  };
+  return labels[normalized] || status || "Неизвестно";
 };
 
 watch(isLoggedIn, async (value) => {

@@ -14,6 +14,7 @@ from online_store_backend.orders.models import ProductViewEvent
 
 from .serializers import CategorySerializer
 from .serializers import ProductSerializer
+from ..cache import get_products_cache_version
 from ..strapi_client import StrapiNotFoundError
 from ..strapi_client import StrapiUnavailableError
 from ..strapi_client import get_category
@@ -120,7 +121,9 @@ def _build_products_strapi_params(validated):
 
 def _products_cache_key(validated):
     """Формирует ключ кэша для выдачи списка товаров."""
+    version = get_products_cache_version()
     parts = [
+        f"v={version}",
         f"page={validated['page']}",
         f"page_size={validated['page_size']}",
         f"ordering={validated.get('ordering') or ''}",
@@ -176,7 +179,8 @@ class ProductViewSet(ViewSet):
 
     def retrieve(self, request, pk=None):
         """Возвращает детальную карточку товара по ID."""
-        cache_key = f"products:detail:{pk}"
+        version = get_products_cache_version()
+        cache_key = f"products:detail:v{version}:{pk}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached, status=status.HTTP_200_OK)
@@ -209,7 +213,8 @@ class ProductViewSet(ViewSet):
         """Возвращает товар по slug."""
         if not slug:
             return Response({"detail": "Slug is required."}, status=status.HTTP_400_BAD_REQUEST)
-        cache_key = f"products:by-slug:{slug}"
+        version = get_products_cache_version()
+        cache_key = f"products:by-slug:v{version}:{slug}"
         cached = cache.get(cache_key)
         if cached:
             return Response(cached, status=status.HTTP_200_OK)

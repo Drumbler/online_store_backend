@@ -153,15 +153,27 @@ def _extract_thumbnail_url(image):
 
 def _extract_media_id(image):
     """Возвращает numeric id первого медиа-элемента, если доступен."""
+    ids = _extract_media_ids(image)
+    return ids[0] if ids else None
+
+
+def _extract_media_ids(image):
+    """Возвращает список numeric id всех медиа-элементов в исходном порядке."""
+    result = []
+    seen = set()
     for attrs in _iter_media_attributes(image):
         candidate = attrs.get("id")
         if candidate in (None, ""):
             continue
         try:
-            return int(candidate)
+            numeric = int(candidate)
         except (TypeError, ValueError):
             continue
-    return None
+        if numeric <= 0 or numeric in seen:
+            continue
+        seen.add(numeric)
+        result.append(numeric)
+    return result
 
 
 def _normalize_category(category):
@@ -240,6 +252,8 @@ def _normalize_product_admin(item):
         logger.error("Product missing documentId: %r", item)
         return None
     discount_percent = _normalize_discount_percent(attrs.get("discount_percent"))
+    gallery_urls = _extract_gallery_urls(attrs.get("image"))
+    image_ids = _extract_media_ids(attrs.get("image"))
     return {
         "id": str(document_id),
         "slug": attrs.get("slug"),
@@ -250,8 +264,10 @@ def _normalize_product_admin(item):
         "category": _normalize_category(attrs.get("category")),
         "discount_percent": discount_percent,
         "publish": bool(attrs.get("publishedAt")),
-        "image_id": _extract_media_id(attrs.get("image")),
-        "image_url": _extract_image_url(attrs.get("image")),
+        "image_id": image_ids[0] if image_ids else None,
+        "image_ids": image_ids,
+        "image_url": gallery_urls[0] if gallery_urls else None,
+        "gallery_urls": gallery_urls,
     }
 
 

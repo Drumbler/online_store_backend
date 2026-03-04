@@ -93,6 +93,40 @@ def test_admin_order_status_patch_updates_paid_order(api_client, admin_user):
 
 
 @pytest.mark.django_db
+def test_user_orders_endpoint_reflects_admin_delivery_status_update(api_client, admin_user):
+    user_model = get_user_model()
+    customer = user_model.objects.create_user(
+        username="buyer_status",
+        password="pass12345",
+        email="buyer_status@example.com",
+    )
+    order = Order.objects.create(
+        user=customer,
+        status=OrderStatus.PAID,
+        total="100.00",
+        shipping_type="courier",
+        shipping_provider="demo",
+        delivery_status=OrderDeliveryStatus.READY_FOR_DISPATCH,
+    )
+
+    api_client.force_authenticate(user=admin_user)
+    patch_response = api_client.patch(
+        f"/api/admin/orders/{order.id}/status/",
+        {"status": OrderDeliveryStatus.IN_TRANSIT},
+        format="json",
+    )
+    assert patch_response.status_code == 200
+
+    api_client.force_authenticate(user=customer)
+    user_orders = api_client.get("/api/orders/")
+    assert user_orders.status_code == 200
+    payload = user_orders.json()
+    assert payload["count"] == 1
+    assert payload["results"][0]["status"] == OrderDeliveryStatus.IN_TRANSIT
+    assert payload["results"][0]["payment_status"] == OrderStatus.PAID
+
+
+@pytest.mark.django_db
 def test_admin_order_status_patch_rejects_unpaid_delivery_transition(api_client, admin_user):
     order = Order.objects.create(
         status=OrderStatus.PENDING_PAYMENT,

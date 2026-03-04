@@ -4,6 +4,19 @@ from django.utils.text import slugify
 from rest_framework import serializers
 
 
+def _normalize_image_ids(values):
+    """Нормализует список media id, сохраняя порядок и удаляя дубликаты."""
+    normalized = []
+    seen = set()
+    for value in values or []:
+        numeric = int(value)
+        if numeric <= 0 or numeric in seen:
+            continue
+        seen.add(numeric)
+        normalized.append(numeric)
+    return normalized
+
+
 class CategoryAdminSerializer(serializers.Serializer):
     """Сериализатор категории для админского списка."""
 
@@ -42,7 +55,17 @@ class ProductAdminSerializer(serializers.Serializer):
     discount_percent = serializers.IntegerField(required=False)
     publish = serializers.BooleanField(required=False)
     image_id = serializers.IntegerField(required=False, allow_null=True)
+    image_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=True,
+    )
     image_url = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    gallery_urls = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=True,
+    )
 
 
 class CategoryUpsertSerializer(serializers.Serializer):
@@ -83,6 +106,11 @@ class ProductUpsertSerializer(serializers.Serializer):
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     publish = serializers.BooleanField(required=False, default=True)
     image = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    images = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=True,
+    )
     discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
 
     def validate(self, attrs):
@@ -103,6 +131,11 @@ class ProductUpsertSerializer(serializers.Serializer):
             if not slug:
                 raise serializers.ValidationError({"slug": "Unable to generate slug."})
             attrs["slug"] = slug
+        if "images" in attrs:
+            attrs["images"] = _normalize_image_ids(attrs.get("images") or [])
+        elif "image" in attrs:
+            image_id = attrs.get("image")
+            attrs["images"] = [int(image_id)] if image_id else []
         return attrs
 
 
@@ -117,7 +150,21 @@ class ProductUpdateSerializer(serializers.Serializer):
     category = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     publish = serializers.BooleanField(required=False)
     image = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    images = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=True,
+    )
     discount_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
+
+    def validate(self, attrs):
+        """Поддерживает совместимость `image` и новый формат `images`."""
+        if "images" in attrs:
+            attrs["images"] = _normalize_image_ids(attrs.get("images") or [])
+        elif "image" in attrs:
+            image_id = attrs.get("image")
+            attrs["images"] = [int(image_id)] if image_id else []
+        return attrs
 
 
 class BulkUpdateOperationSerializer(serializers.Serializer):

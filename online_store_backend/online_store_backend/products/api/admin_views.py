@@ -19,6 +19,7 @@ from .admin_serializers import CategoryUpsertSerializer
 from .admin_serializers import ProductAdminSerializer
 from .admin_serializers import ProductUpdateSerializer
 from .admin_serializers import ProductUpsertSerializer
+from ..cache import bump_products_cache_version
 from ..strapi_client import StrapiNotFoundError
 from ..strapi_client import StrapiRequestError
 from ..strapi_client import StrapiUnavailableError
@@ -79,24 +80,37 @@ def _extract_category_document_id(category):
     return category.get("documentId") or category.get("id")
 
 
-def _extract_media_id(image):
-    """Извлекает numeric media id из relation-представления Strapi."""
+def _extract_media_ids(image):
+    """Извлекает numeric media id из relation-представления Strapi, сохраняя порядок."""
     if not image:
-        return None
+        return []
     if isinstance(image, dict) and "data" in image:
         image = image["data"]
-    if isinstance(image, list):
-        image = image[0] if image else None
-    if not isinstance(image, dict):
-        return None
-    attrs = image.get("attributes") if isinstance(image.get("attributes"), dict) else image
-    candidate = attrs.get("id") if isinstance(attrs, dict) else image.get("id")
-    if candidate in (None, ""):
-        candidate = image.get("id")
-    try:
-        return int(candidate)
-    except (TypeError, ValueError):
-        return None
+    items = image if isinstance(image, list) else [image]
+    result = []
+    seen = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        attrs = item.get("attributes") if isinstance(item.get("attributes"), dict) else item
+        candidate = attrs.get("id") if isinstance(attrs, dict) else item.get("id")
+        if candidate in (None, ""):
+            candidate = item.get("id")
+        try:
+            numeric = int(candidate)
+        except (TypeError, ValueError):
+            continue
+        if numeric <= 0 or numeric in seen:
+            continue
+        seen.add(numeric)
+        result.append(numeric)
+    return result
+
+
+def _extract_media_id(image):
+    """Извлекает numeric id первого изображения."""
+    image_ids = _extract_media_ids(image)
+    return image_ids[0] if image_ids else None
 
 
 def _normalize_price_value(value):
@@ -181,9 +195,8 @@ def _build_product_payload(attrs):
         "discount_percent": attrs.get("discount_percent") or 0,
         "publishedAt": attrs.get("publishedAt"),
     }
-    image_id = _extract_media_id(attrs.get("image"))
-    if image_id is not None:
-        payload["image"] = image_id
+    image_ids = _extract_media_ids(attrs.get("image"))
+    payload["image"] = image_ids
     return payload
 
 
@@ -298,6 +311,7 @@ class CategoryAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         response_serializer = self.serializer_class(category)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -323,6 +337,7 @@ class CategoryAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         response_serializer = self.serializer_class(category)
         return Response(response_serializer.data)
 
@@ -338,6 +353,7 @@ class CategoryAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="apply-discount")
@@ -405,6 +421,8 @@ class CategoryAdminViewSet(ViewSet):
                 break
             page += 1
 
+        if updated_count > 0:
+            bump_products_cache_version()
         return Response(
             {
                 "category_id": pk,
@@ -477,6 +495,8 @@ class CategoryAdminViewSet(ViewSet):
                 break
             page += 1
 
+        if updated_count > 0:
+            bump_products_cache_version()
         return Response(
             {
                 "category_id": pk,
@@ -536,8 +556,11 @@ class ProductAdminViewSet(ViewSet):
             payload["price"] = str(payload["price"])
         if payload.get("category") == "":
             payload["category"] = None
-        if payload.get("image") == "":
-            payload["image"] = None
+        if "images" in payload:
+            payload["image"] = payload.pop("images")
+        elif "image" in payload:
+            image_id = payload.pop("image")
+            payload["image"] = [int(image_id)] if image_id else []
         try:
             product = create_product_admin(payload)
         except StrapiRequestError as exc:
@@ -553,6 +576,7 @@ class ProductAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         response_serializer = self.serializer_class(product)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -585,7 +609,7 @@ class ProductAdminViewSet(ViewSet):
             "currency": current.get("currency"),
             "category": _extract_category_document_id(current.get("category")),
             "discount_percent": current.get("discount_percent"),
-            "image": _extract_media_id(current.get("image")),
+            "image": _extract_media_ids(current.get("image")),
             "publishedAt": current.get("publishedAt"),
         }
         updates = serializer.validated_data
@@ -593,8 +617,11 @@ class ProductAdminViewSet(ViewSet):
             payload["price"] = str(updates["price"])
         if "category" in updates:
             payload["category"] = None if updates["category"] == "" else updates["category"]
-        if "image" in updates:
-            payload["image"] = updates["image"]
+        if "images" in updates:
+            payload["image"] = list(updates["images"])
+        elif "image" in updates:
+            image_id = updates["image"]
+            payload["image"] = [int(image_id)] if image_id else []
         if "publish" in updates:
             payload["publishedAt"] = _published_at(updates["publish"])
         if "discount_percent" in updates:
@@ -617,6 +644,7 @@ class ProductAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         response_serializer = self.serializer_class(product)
         return Response(response_serializer.data)
 
@@ -632,6 +660,7 @@ class ProductAdminViewSet(ViewSet):
                 {"detail": "Catalog service unavailable"},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+        bump_products_cache_version()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="upload-image")
@@ -746,7 +775,7 @@ class ProductAdminViewSet(ViewSet):
                 "category": category_id
                 if operation_type == "set_category"
                 else _extract_category_document_id(attrs.get("category")),
-                "image": _extract_media_id(attrs.get("image")),
+                "image": _extract_media_ids(attrs.get("image")),
                 "publishedAt": attrs.get("publishedAt"),
             }
             try:
@@ -769,4 +798,6 @@ class ProductAdminViewSet(ViewSet):
                 )
             else:
                 updated += 1
+        if updated > 0:
+            bump_products_cache_version()
         return Response({"updated": updated, "failed": failed})

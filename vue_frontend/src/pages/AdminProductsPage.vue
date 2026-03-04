@@ -990,17 +990,6 @@ const changePage = async (direction: number) => {
   await loadProducts();
 };
 
-const getPrimaryImage = (row: ProductRow) => {
-  if (row.images.length === 0) {
-    return null;
-  }
-  const index = normalizeThumbnailIndex(row.thumbnailIndex, row.images);
-  if (index === null) {
-    return null;
-  }
-  return row.images[index] || null;
-};
-
 const uploadImage = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -1015,25 +1004,37 @@ const uploadImage = async (file: File) => {
   };
 };
 
-const resolvePrimaryImageId = async (row: ProductRow) => {
-  const primaryImage = getPrimaryImage(row);
-  if (!primaryImage) {
-    return null;
+const orderedImagesByThumbnail = (row: ProductRow) => {
+  const normalized = normalizeThumbnailIndex(row.thumbnailIndex, row.images);
+  if (normalized === null) {
+    return [...row.images];
   }
-  if (typeof primaryImage.fileId === "number") {
-    return primaryImage.fileId;
+  return [row.images[normalized], ...row.images.filter((_, index) => index !== normalized)];
+};
+
+const resolveImageIds = async (row: ProductRow) => {
+  const ordered = orderedImagesByThumbnail(row);
+  const ids: number[] = [];
+
+  for (const image of ordered) {
+    if (typeof image.fileId === "number" && image.fileId > 0) {
+      ids.push(image.fileId);
+      continue;
+    }
+    if (!image.file) {
+      continue;
+    }
+    const uploaded = await uploadImage(image.file);
+    image.fileId = uploaded.id;
+    if (uploaded.url) {
+      image.url = uploaded.url;
+      image.preview = uploaded.url;
+    }
+    delete image.file;
+    ids.push(uploaded.id);
   }
-  if (!primaryImage.file) {
-    return null;
-  }
-  const uploaded = await uploadImage(primaryImage.file);
-  primaryImage.fileId = uploaded.id;
-  if (uploaded.url) {
-    primaryImage.url = uploaded.url;
-    primaryImage.preview = uploaded.url;
-  }
-  delete primaryImage.file;
-  return uploaded.id;
+
+  return Array.from(new Set(ids.filter((id) => Number.isFinite(id) && id > 0)));
 };
 
 const buildRowFromApi = (item: any): ProductRow => {
@@ -1041,18 +1042,29 @@ const buildRowFromApi = (item: any): ProductRow => {
   const discount = Number(item.discount_percent ?? 0);
   const categoryId = item.category?.id || "";
   const imageUrl = typeof item.image_url === "string" ? item.image_url : "";
-  const imageIdValue = Number(item.image_id);
-  const imageId = Number.isFinite(imageIdValue) && imageIdValue > 0 ? imageIdValue : null;
-  const images: ImageItem[] = imageUrl
-    ? [
-        {
-          id: `existing-${item.id}-${imageId ?? "none"}`,
-          preview: imageUrl,
-          url: imageUrl,
-          fileId: imageId
-        }
-      ]
-    : [];
+  const galleryUrlsRaw = Array.isArray(item.gallery_urls) ? item.gallery_urls : [];
+  const galleryUrls = galleryUrlsRaw
+    .map((entry: unknown) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter((entry: string) => entry.length > 0);
+  if (galleryUrls.length === 0 && imageUrl) {
+    galleryUrls.push(imageUrl);
+  }
+
+  const imageIdsRaw = Array.isArray(item.image_ids) ? item.image_ids : [];
+  const fallbackImageId = Number(item.image_id);
+  const normalizedImageIds = imageIdsRaw
+    .map((entry: unknown) => Number(entry))
+    .filter((entry: number) => Number.isFinite(entry) && entry > 0);
+  if (normalizedImageIds.length === 0 && Number.isFinite(fallbackImageId) && fallbackImageId > 0) {
+    normalizedImageIds.push(fallbackImageId);
+  }
+
+  const images: ImageItem[] = galleryUrls.map((url, index) => ({
+    id: `existing-${item.id}-${index}`,
+    preview: url,
+    url,
+    fileId: normalizedImageIds[index] ?? null
+  }));
   const normalizedThumbnailIndex = normalizeThumbnailIndex(0, images);
   const row: ProductRow = {
     id: String(item.id),
@@ -1163,7 +1175,7 @@ const applyChanges = async () => {
     }
 
     for (const row of created) {
-      const imageId = await resolvePrimaryImageId(row);
+      const imageIds = await resolveImageIds(row);
       try {
         await adminApiClient.post("/admin/catalog/products/", {
           title: row.title,
@@ -1173,7 +1185,8 @@ const applyChanges = async () => {
           currency: "RUB",
           category: row.category_id || "",
           publish: row.publish,
-          image: imageId,
+          image: imageIds.length > 0 ? imageIds[0] : null,
+          images: imageIds,
           discount_percent: row.discount_percent
         });
       } catch (err: any) {
@@ -1188,7 +1201,7 @@ const applyChanges = async () => {
     }
 
     for (const row of updated) {
-      const imageId = await resolvePrimaryImageId(row);
+      const imageIds = await resolveImageIds(row);
       try {
         await adminApiClient.put(`/admin/catalog/products/${row.id}/`, {
           title: row.title,
@@ -1198,7 +1211,8 @@ const applyChanges = async () => {
           currency: "RUB",
           category: row.category_id || "",
           publish: row.publish,
-          image: imageId,
+          image: imageIds.length > 0 ? imageIds[0] : null,
+          images: imageIds,
           discount_percent: row.discount_percent
         });
       } catch (err: any) {
