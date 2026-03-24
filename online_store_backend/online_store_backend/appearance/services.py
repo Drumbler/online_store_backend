@@ -270,16 +270,13 @@ def serialize_banner(banner: AppearanceBanner):
 
 
 def _build_logo_url(settings_obj: ShopAppearanceSettings, request=None):
-    """Построить URL логотипа (абсолютный при наличии request)."""
+    """Вернуть URL логотипа в виде, который отдает storage backend."""
     if not settings_obj.logo:
         return None
     try:
-        logo_url = settings_obj.logo.url
+        return settings_obj.logo.url
     except ValueError:
         return None
-    if request is not None:
-        return request.build_absolute_uri(logo_url)
-    return logo_url
 
 
 def serialize_settings(settings_obj: ShopAppearanceSettings, request=None):

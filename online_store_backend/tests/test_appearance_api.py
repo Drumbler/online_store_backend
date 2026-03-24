@@ -3,6 +3,7 @@ import io
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 from rest_framework.test import APIClient
 from PIL import Image
 
@@ -215,6 +216,35 @@ def test_logo_upload_is_returned_only_after_publish(api_client, admin_user):
     public_logo_url = public_after_publish.json()["logo_url"]
     assert public_logo_url
     assert "appearance/logos/" in public_logo_url
+
+
+@pytest.mark.django_db
+@override_settings(
+    MEDIA_URL="/media/",
+    ALLOWED_HOSTS=["testserver", "localhost", "127.0.0.1", "0.0.0.0"],
+)
+def test_logo_url_keeps_relative_media_path_instead_of_request_host(api_client, admin_user):
+    api_client.force_authenticate(user=admin_user)
+
+    upload = api_client.put(
+        "/api/admin/appearance/draft/",
+        {"logo": build_logo_file("logo.png", (240, 240))},
+        format="multipart",
+        HTTP_HOST="0.0.0.0:8000",
+    )
+    assert upload.status_code == 200
+    draft_logo_url = upload.json()["logo_url"]
+    assert draft_logo_url.startswith("/media/")
+    assert "0.0.0.0:8000" not in draft_logo_url
+
+    publish = api_client.post("/api/admin/appearance/publish/", {}, format="json", HTTP_HOST="0.0.0.0:8000")
+    assert publish.status_code == 200
+
+    public_after_publish = api_client.get("/api/shop/appearance/", HTTP_HOST="0.0.0.0:8000")
+    assert public_after_publish.status_code == 200
+    public_logo_url = public_after_publish.json()["logo_url"]
+    assert public_logo_url.startswith("/media/")
+    assert "0.0.0.0:8000" not in public_logo_url
 
 
 @pytest.mark.django_db
